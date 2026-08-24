@@ -24,63 +24,37 @@ st.markdown("""
 
 if 'stored_ticker' not in st.session_state:
     st.session_state.stored_ticker = "RELIANCE.NS"
-# 3. 2,200+ NSE ಮ್ಯಾಸ್ಸಿವ್ ಸ್ಟಾಕ್ ಲೋಡರ್ ಇಂಜಿನ್ (FIXED FOR ALL STOCKS)
+if 'stored_title' not in st.session_state:
+    st.session_state.stored_title = "Reliance Industries"
+
 @st.cache_data
 def init_stock_database():
     import requests
     import io
-    
-    # 2200+ ಅಧಿಕೃತ ಸ್ಟಾಕ್‌ಗಳ ಲಿಸ್ಟ್ ಪಡೆಯಲು ಎನ್‌ಎಸ್‌ಇ ಲೈವ್ ಯುಆರ್‌ಎಲ್
-    url = "https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
+    url = "https://nseindia.com"
+    headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        # ಆನ್‌ಲೈನ್‌ನಲ್ಲಿ ಲೈವ್ ಎನ್‌ಎಸ್‌ಇ ಲಿಸ್ಟ್ ಡೌನ್‌ಲೋಡ್ ಮಾಡುವುದು
         response = requests.get(url, headers=headers, timeout=10)
         df_nse = pd.read_csv(io.StringIO(response.text))
         df_nse.columns = df_nse.columns.str.strip()
-        
         master_stocks = {}
         for _, row in df_nse.iterrows():
             symbol = str(row['SYMBOL']).strip()
             name = str(row['NAME OF COMPANY']).strip()
             if symbol and symbol != "SYMBOL":
                 ticker_ns = f"{symbol}.NS"
-                display_name = f"{name} ({ticker_ns})"
-                master_stocks[display_name] = ticker_ns
-        
+                master_stocks[f"{name} ({ticker_ns})"] = ticker_ns
         if len(master_stocks) > 50:
             return master_stocks
-            
     except Exception:
         pass
-        
-    # ಒಂದು ವೇಳೆ ಎನ್‌ಎಸ್‌ಇ ಸರ್ವರ್ ಡೌನ್ ಇದ್ದರೆ ಬ್ಯಾಕಪ್ ಲಿಸ್ಟ್
-    return {
-        "Reliance Industries Limited (RELIANCE.NS)": "RELIANCE.NS",
-        "Tata Consultancy Services Limited (TCS.NS)": "TCS.NS",
-        "Infosys Limited (INFY.NS)": "INFY.NS",
-        "HDFC Bank Limited (HDFCBANK.NS)": "HDFCBANK.NS",
-        "ICICI Bank Limited (ICICIBANK.NS)": "ICICIBANK.NS",
-        "State Bank of India (SBIN.NS)": "SBIN.NS",
-        "Bharti Airtel Limited (BHARTIARTL.NS)": "BHARTIARTL.NS",
-        "ITC Limited (ITC.NS)": "ITC.NS",
-        "Larsen & Toubro Limited (LT.NS)": "LT.NS",
-        "Axis Bank Limited (AXISBANK.NS)": "AXISBANK.NS",
-        "Mahindra & Mahindra Limited (M&M.NS)": "M&M.NS",
-        "Tata Motors Limited (TATAMOTORS.NS)": "TATAMOTORS.NS"
-    }
+    return {"Reliance Industries Limited (RELIANCE.NS)": "RELIANCE.NS"}
 
 nse_stocks = init_stock_database()
 
 st.title("🚀 M and M Institutional Quant Terminal")
 
-selected_display = st.selectbox(
-    "NSE Stock ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆ ಮಾಡಿ (2,200+ Stocks):", 
-    options=list(nse_stocks.keys())
-)
+selected_display = st.selectbox("NSE Stock ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆ ಮಾಡಿ (2,200+ Stocks):", options=list(nse_stocks.keys()))
 
 if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
@@ -103,14 +77,13 @@ try:
         price_change = latest_close - prev_close
         pct_change = (price_change / prev_close) * 100
 
-        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
+        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮತ್ತು ಅಲ್ಗಾರಿದಮಿಕ್ ಇಂಡಿಕೇಟರ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
         delta = df['Close'].diff()
         gain = np.where(delta > 0, delta, 0)
         loss = np.where(delta < 0, -delta, 0)
         avg_gain = pd.Series(gain).ewm(com=13, adjust=False).mean()
         avg_loss = pd.Series(loss).ewm(com=13, adjust=False).mean()
-        rs = avg_gain / (avg_loss + 1e-10)
-        df['RSI'] = 100 - (100 / (1 + rs)).values
+        df['RSI'] = 100 - (100 / (1 + (avg_gain / (avg_loss + 1e-10)))).values
 
         df['EMA12'] = df['Close'].ewm(span=12, adjust=False).mean()
         df['EMA26'] = df['Close'].ewm(span=26, adjust=False).mean()
@@ -123,6 +96,32 @@ try:
         df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
         df['ATR'] = df['TR'].ewm(span=14, adjust=False).mean()
 
+        # 1. BOLLINGER BANDS ಅಲ್ಗಾರಿದಮ್ (20-Period, 2x Std Dev)
+        df['BB_Middle'] = df['Close'].rolling(window=20).mean()
+        df['BB_Std'] = df['Close'].rolling(window=20).std()
+        df['BB_Upper'] = df['BB_Middle'] + (2 * df['BB_Std'])
+        df['BB_Lower'] = df['BB_Middle'] - (2 * df['BB_Std'])
+
+        # 2. SUPERTREND ಅಲ್ಗಾರಿದಮ್ (Period 10, Multiplier 3)
+        hl2 = (df['High'] + df['Low']) / 2
+        df['Basic_Upper'] = hl2 + (3 * df['ATR'])
+        df['Basic_Lower'] = hl2 - (3 * df['ATR'])
+        df['Final_Upper'] = df['Basic_Upper']
+        df['Final_Lower'] = df['Basic_Lower']
+        df['SuperTrend_Signal'] = "BUY"
+        
+        # ವೆಕ್ಟರೈಸ್ಡ್ ಸೂಪರ್ ಟ್ರೆಂಡ್ ಲೂಪ್ ಲೆಕ್ಕಾಚಾರ
+        for i in range(1, len(df)):
+            if df['Close'].iloc[i-1] <= df['Final_Upper'].iloc[i-1]:
+                df.loc[df.index[i], 'Final_Upper'] = min(df['Basic_Upper'].iloc[i], df['Final_Upper'].iloc[i-1]) if df['Basic_Upper'].iloc[i] < df['Final_Upper'].iloc[i-1] or df['Close'].iloc[i-1] > df['Final_Upper'].iloc[i-1] else df['Final_Upper'].iloc[i-1]
+            if df['Close'].iloc[i-1] >= df['Final_Lower'].iloc[i-1]:
+                df.loc[df.index[i], 'Final_Lower'] = max(df['Basic_Lower'].iloc[i], df['Final_Lower'].iloc[i-1])
+            
+            if df['Close'].iloc[i] <= df['Final_Upper'].iloc[i]:
+                df.loc[df.index[i], 'SuperTrend_Signal'] = "SELL"
+            else:
+                df.loc[df.index[i], 'SuperTrend_Signal'] = "BUY"
+
         # UI ಮೆಟ್ರಿಕ್ಸ್
         st.subheader(f"⚡ {st.session_state.stored_title} ಇಂದಿನ ಸ್ಥಿತಿ")
         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
@@ -132,80 +131,51 @@ try:
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
         # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್
-        st.write("### 🚨 M and M ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
-        rsi_now = df['RSI'].iloc[-1]
-        macd_now = df['MACD'].iloc[-1]
-        signal_now = df['Signal'].iloc[-1]
-        
-        is_bullish_engulfing = (df['Close'].iloc[-1] > df['Open'].iloc[-1]) and (df['Close'].iloc[-2] < df['Open'].iloc[-2]) and (df['Close'].iloc[-1] >= df['Open'].iloc[-2])
-        is_hammer = ((df['High'].iloc[-1] - df['Low'].iloc[-1]) > 3 * np.abs(df['Open'].iloc[-1] - df['Close'].iloc[-1])) and ((df['Close'].iloc[-1] - df['Low'].iloc[-1]) / (.001 + df['High'].iloc[-1] - df['Low'].iloc[-1]) > 0.6)
+        st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
+        st_signal = df['SuperTrend_Signal'].iloc[-1]
+        bb_upper = df['BB_Upper'].iloc[-1]
+        bb_lower = df['BB_Lower'].iloc[-1]
 
         sig_col1, sig_col2 = st.columns(2)
         with sig_col1:
-            st.info("📊 **ತಾಂತ್ರಿಕ ಸೂಚಕ ಸಿಗ್ನಲ್:**")
-            if rsi_now < 35 or (macd_now > signal_now and df['MACD'].iloc[-2] <= df['Signal'].iloc[-2]):
-                st.success("🟢 **BUY SIGNAL (ಖರೀದಿಸಿ)**")
-            elif rsi_now > 70 or (macd_now < signal_now and df['MACD'].iloc[-2] >= df['Signal'].iloc[-2]):
-                st.error("🔴 **SELL SIGNAL (ಮಾರಾಟ ಮಾಡಿ)**")
+            st.info("🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್ ಸಿಗ್ನಲ್:**")
+            if st_signal == "BUY":
+                st.success("🟢 **ALGO: STRONG BUY (ಬಲವಾದ ಖರೀದಿ)**\n\nಸೂಪರ್ ಟ್ರೆಂಡ್ ಅಲ್ಗಾರಿದಮ್ ಬುಲ್ಲಿಷ್ ವಲಯವನ್ನು ಖಚಿತಪಡಿಸಿದೆ.")
             else:
-                st.warning("🟡 **HOLD SIGNAL (ಕಾಯ್ದುಕೊಳ್ಳಿ)**")
+                st.error("🔴 **ALGO: STRONG SELL (ಬಲವಾದ ಮಾರಾಟ)**\n\nಸೂಪರ್ ಟ್ರೆಂಡ್ ಅಲ್ಗಾರಿದಮ್ ಬೇರಿಷ್ ಟ್ರೆಂಡ್ ಸೂಚಿಸಿದೆ.")
 
         with sig_col2:
-            st.info("🔍 **ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಅಲರ್ಟ್:**")
-            if is_bullish_engulfing:
-                st.success("🔥 **BULLISH ENGULFING ಕಂಡುಬಂದಿದೆ!**")
-            elif is_hammer:
-                st.success("🔨 **HAMMER PATTERN ಮೂಡಿದೆ!**")
+            st.info("📊 **Bollinger Bands ಬ್ರೇಕ್‌ಔಟ್ ಅಲರ್ಟ್:**")
+            if latest_close >= bb_upper:
+                st.success("🔥 **UPPER BAND BREAKOUT!**\n\nಬೆಲೆಯು ಬೋಲಿಂಜರ್ ಮೇಲ್ಭಾಗದ ಬ್ಯಾಂಡ್ ದಾಟಿದೆ. ತೀವ್ರ ಏರಿಕೆಯ ಸಾಧ್ಯತೆ.")
+            elif latest_close <= bb_lower:
+                st.error("⚠️ **LOWER BAND BREAKOUT!**\n\nಬೆಲೆಯು ಕೆಳಭಾಗದ ಬ್ಯಾಂಡ್ಗಿಂತ ಕೆಳಗೆ ಹೋಗಿದೆ. ಓವರ್‌ಸೋಲ್ಡ್ ಸೂಚನೆ.")
             else:
-                st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
+                st.warning("🟡 **ಬ್ಯಾಂಡ್ ಒಳಗಡೆ ಚಲನೆ:** ಬೆಲೆಯು ಸ್ಥಿರ ವಲಯದಲ್ಲಿದೆ (Normal Range).")
 
-        # --------------- REAL TRADINGVIEW STYLE CANDLESTICK CHART (ALTAIR) ---------------
+        # TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (ALTAIR)
         st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
-        
         chart_df = df.copy().reset_index()
         chart_df['Date'] = pd.to_datetime(chart_df['Date'])
         
-        # ಹಸಿರು ಮತ್ತು ಕೆಂಪು ಕಂಡೀಷನ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
-        open_close_color = alt.condition(
-            "datum.Open <= datum.Close",
-            alt.value("#26a69a"), # TradingView Green
-            alt.value("#ef5350")  # TradingView Red
-        )
-
-        # 1. ಕ್ಯಾಂಡಲ್‌ನ ಮಧ್ಯದ ಕೋಲು (Wick/Rule)
+        open_close_color = alt.condition("datum.Open <= datum.Close", alt.value("#26a69a"), alt.value("#ef5350"))
         wick = alt.Chart(chart_df).mark_rule(color="#d1d4dc", strokeWidth=1).encode(
-            x=alt.X('Date:T', title="ದಿನಾಂಕ", axis=alt.Axis(format='%d %b', grid=False)),
-            y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)),
-            y2='High:Q'
+            x=alt.X('Date:T', title="ದಿನಾಂک", axis=alt.Axis(format='%d %b', grid=False)),
+            y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)), y2='High:Q'
         )
-
-        # 2. ಕ್ಯಾಂಡಲ್‌ನ ಬಾಡಿ (Body/Bar)
-        body = alt.Chart(chart_df).mark_bar(width=6).encode(
-            x='Date:T',
-            y='Open:Q',
-            y2='Close:Q',
-            color=open_close_color
-        )
-
-        # ಎರಡನ್ನೂ ಒಟ್ಟಿಗೆ ಸೇರಿಸಿ ಚಾರ್ಟ್ ಪ್ರದರ್ಶಿಸುವುದು
+        body = alt.Chart(chart_df).mark_bar(width=6).encode(x='Date:T', y='Open:Q', y2='Close:Q', color=open_close_color)
+        
         candles = (wick + body).properties(height=400, background='#0b0f19').configure_view(strokeWidth=0)
         st.altair_chart(candles, use_container_width=True)
-        # ----------------------------------------------------------------------------------
 
+        # ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
         atr_now = float(df['ATR'].iloc[-1])
-        stop_loss = latest_close - (2 * atr_now)
-        target_1 = latest_close + (3 * atr_now)
-        max_exit = latest_close + (5 * atr_now)
-
         r_col1, r_col2, r_col3, r_col4 = st.columns(4)
         r_col1.info(f"**Entry Limit:**\n₹{latest_close:.2f}")
-        r_col2.error(f"**Stop-Loss (2x ATR):**\n₹{stop_loss:.2f}")
-        r_col3.success(f"**Target 1 (3x ATR):**\n₹{target_1:.2f}")
-        r_col4.warning(f"**Max Target (5x ATR):**\n₹{max_exit:.2f}")
-
-        st.write("### 🗒️ ಹಿಸ್ಟಾರಿಕಲ್ ಡೇಟಾ ಲೆಡ್ಜರ್ (Recent Data Points)")
-        st.dataframe(df[['Open', 'High', 'Low', 'Close', 'RSI', 'MACD', 'ATR']].tail(5))
+        r_col2.error(f"**Stop-Loss (2x ATR):**\n₹{(latest_close - (2 * atr_now)):.2f}")
+        r_col3.success(f"**Target 1 (3x ATR):**\n₹{(latest_close + (3 * atr_now)):.2f}")
+        r_col4.warning(f"**Max Target (5x ATR):**\n₹{(latest_close + (5 * atr_now)):.2f}")
 
 except Exception as e:
     st.error(f"⚠️ ರನ್‌ಟೈಮ್ ದೋಷ ಉಂಟಾಗಿದೆ: {e}")
