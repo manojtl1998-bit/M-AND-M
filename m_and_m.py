@@ -4,8 +4,9 @@ import numpy as np
 import yfinance as yf
 import json
 import os
+import time
 
-# 1. ಪೇಜ್ ಸೆಟಪ್ (ಆಪ್ ಹೆಸರು "M and M" ಎಂದು ಬದಲಾಯಿಸಲಾಗಿದೆ)
+# 1. ಪೇಜ್ ಸೆಟಪ್
 st.set_page_config(page_title="M and M Quant Terminal", layout="wide")
 
 st.markdown("""
@@ -42,7 +43,6 @@ def init_stock_database():
 
 nse_stocks = init_stock_database()
 
-# ಹೆಡರ್ ಬ್ರ್ಯಾಂಡಿಂಗ್ ಬದಲಾವಣೆ
 st.title("🚀 M and M Institutional Quant Terminal")
 
 selected_display = st.selectbox(
@@ -54,17 +54,19 @@ if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
     st.session_state.stored_title = selected_display.split(" (")[0]
 
-@st.cache_data(ttl=5)
+# RATE LIMIT ನಿವಾರಿಸಲು ಸುರಕ್ಷಿತ ಫೆಚರ್ ಇಂಜಿನ್ (FIXED)
+@st.cache_data(ttl=60) # ಪ್ರತಿ 60 ಸೆಕೆಂಡಿಗೆ ಮಾತ್ರ ಸರ್ವರ್ ಹಿಟ್ ಮಾಡುತ್ತದೆ
 def get_market_data(ticker):
+    # ಬ್ಲಾಕಿಂಗ್ ತಪ್ಪಿಸಲು ಸುರಕ್ಷಿತ ಇಂಟರ್ವಲ್ ಮತ್ತು ಪಿರಿಯಡ್ ಬಳಕೆ
     stock = yf.Ticker(ticker)
-    data = stock.history(period="60d", interval="15m")
+    data = stock.history(period="3mo", interval="1d")
     return data
 
 try:
     df = get_market_data(st.session_state.stored_ticker)
     
     if df.empty:
-        st.error("⚠️ ಲೈವ್ ಡೇಟಾ ಸಿಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಇಂಟರ್ನೆಟ್ ಪರಿಶೀಲಿಸಿ.")
+        st.error("⚠️ Yahoo Finance ನಿಂದ ಈ ಸ್ಟಾಕ್‌ನ ಡೇಟಾ ಸಿಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಪ್ರಯತ್ನಿಸಿ.")
     else:
         latest_close = float(df['Close'].iloc[-1])
         prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else latest_close
@@ -92,14 +94,14 @@ try:
         df['ATR'] = df['TR'].ewm(span=14, adjust=False).mean()
 
         # UI ಮೆಟ್ರಿಕ್ಸ್
-        st.subheader(f"⚡ {st.session_state.stored_title} ಪ್ರಸ್ತುತ ಲೈವ್ ಸ್ಥಿತಿ")
+        st.subheader(f"⚡ {st.session_state.stored_title} ಇಂದಿನ ಸ್ಥಿತಿ")
         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-        m_col1.metric("ಲೈವ್ ಬೆಲೆ", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
+        m_col1.metric("ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
         m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        st.write("### 📈 ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಟ್ರೆಂಡ್ (Real-time Interval Chart)")
+        st.write("### 📈 ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಟ್ರೆಂಡ್ (Trend Chart)")
         st.line_chart(df['Close'])
 
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
@@ -114,7 +116,7 @@ try:
         r_col3.success(f"**Target 1 (3x ATR):**\n₹{target_1:.2f}")
         r_col4.warning(f"**Max Target (5x ATR):**\n₹{max_exit:.2f}")
 
-        st.write("### 🗒️ ಲೈವ್ ಡೇಟಾ ಲೆಡ್ಜರ್ (Recent Data Points)")
+        st.write("### 🗒️ ಹಿಸ್ಟಾರಿಕಲ್ ಡೇಟಾ ಲೆಡ್ಜರ್ (Recent Data Points)")
         st.dataframe(df[['Open', 'High', 'Low', 'Close', 'RSI', 'MACD', 'ATR']].tail(5))
 
 except Exception as e:
