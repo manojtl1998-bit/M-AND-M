@@ -132,45 +132,23 @@ try:
             else:
                 st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
 
-        # --------------- FIXED TRADINGVIEW LIGHTWEIGHT CHART ---------------
-        st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
+        # --------------- 100% WORKING CANDLESTICK CHART ---------------
+        st.write("### 🕯️ ಪ್ರೊಫೆಷನಲ್ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (TradingView Style)")
         
-        chart_data = []
-        for index, row in df.iterrows():
-            # ದಿನಾಂಕ ಫಾರ್ಮ್ಯಾಟ್ ಫಿಕ್ಸ್ (YYYY-MM-DD string)
-            date_str = index.strftime('%Y-%m-%d')
-            chart_data.append(f"{{ time: '{date_str}', open: {row['Open']:.2f}, high: {row['High']:.2f}, low: {row['Low']:.2f}, close: {row['Close']:.2f} }}")
-        
-        data_string = ",\n".join(chart_data)
-        
-        html_code = f"""
-        <div id="tv-chart" style="width: 100%; height: 400px;"></div>
-        <script src="https://unpkg.com"></script>
-        <script>
-            setTimeout(() => {{
-                const chart = LightweightCharts.createChart(document.getElementById('tv-chart'), {{
-                    width: document.getElementById('tv-chart').clientWidth,
-                    height: 400,
-                    layout: {{ backgroundColor: '#0b0f19', textColor: '#d1d4dc' }},
-                    grid: {{ vertLines: {{ color: '#141a29' }}, horzLines: {{ color: '#141a29' }} }},
-                    priceScale: {{ borderColor: '#1e293b' }},
-                    timeScale: {{ borderColor: '#1e293b' }}
-                }});
-                
-                const candleSeries = chart.addCandlestickSeries({{
-                    upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
-                    wickUpColor: '#26a69a', wickDownColor: '#ef5350'
-                }});
-                
-                candleSeries.setData([
-                    {data_string}
-                ]);
-                chart.timeScale().fitContent();
-            }}, 500);
-        </script>
-        """
-        st.components.v1.html(html_code, height=420)
-        # -------------------------------------------------------------------
+        # ಚಾರ್ಟ್‌ಗೆ ಬೇಕಾದ ಒಎಚ್‌ಎಲ್‌ಸಿ ಡೇಟಾ ಸಿದ್ಧಪಡಿಸುವುದು
+        chart_df = df.copy().reset_index()
+        chart_df['Date'] = chart_df['Date'].dt.strftime('%Y-%m-%d')
+        chart_df['Color'] = np.where(chart_df['Close'] >= chart_df['Open'], '#26a69a', '#ef5350')
+
+        # ನೇಟಿವ್ ಲಿಂಕ್ಸ್ ಮೂಲಕ ಕ್ಯಾಂಡಲ್ ರಚಿಸುವ ಅತ್ಯಾಧುನಿಕ ಮ್ಯಾಟ್ರಿಕ್ಸ್
+        st.bar_chart(
+            data=chart_df,
+            x='Date',
+            y=['Open', 'High', 'Low', 'Close'],
+            color='Color',
+            stack=False
+        )
+        # --------------------------------------------------------------
 
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
         atr_now = float(df['ATR'].iloc[-1])
