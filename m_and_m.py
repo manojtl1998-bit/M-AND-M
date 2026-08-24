@@ -27,7 +27,7 @@ if 'stored_ticker' not in st.session_state:
 if 'stored_title' not in st.session_state:
     st.session_state.stored_title = "Reliance Industries"
 
-# 2. ಪ್ರಮುಖ 150+ NSE ಸ್ಟಾಕ್‌ಗಳ ಕನ್ಫರ್ಮ್ಡ್ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್ (100% ಬ್ಲಾಕಿಂಗ್ ಮುಕ್ತ)
+# 2. ಪ್ರಮುಖ 150+ NSE ಸ್ಟಾಕ್‌ಗಳ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್
 def init_stock_database():
     return {
         "Reliance Industries Limited (RELIANCE.NS)": "RELIANCE.NS",
@@ -78,15 +78,12 @@ def init_stock_database():
         "Adani Enterprises Limited (ADANIENT.NS)": "ADANIENT.NS",
         "Adani Green Energy Limited (ADANIGREEN.NS)": "ADANIGREEN.NS",
         "Adani Total Gas Limited (ATGL.NS)": "ATGL.NS",
-        "Adani Transmission Limited (ADANITRANS.NS)": "ADANITRANS.NS",
         "Avenue Supermarts Limited (DMART.NS)": "DMART.NS",
         "Ambuja Cements Limited (AMBUJACEM.NS)": "AMBUJACEM.NS",
         "Bank of Baroda (BANKBARODA.NS)": "BANKBARODA.NS",
         "Bharat Electronics Limited (BEL.NS)": "BEL.NS",
         "Canara Bank (CANBK.NS)": "CANBK.NS",
         "DLF Limited (DLF.NS)": "DLF.NS",
-        "Federation Bank Limited (FEDERALBNK.NS)": "FEDERALBNK.NS",
-        "Godrej Properties Limited (GODREJPROP.NS)": "GODREJPROP.NS",
         "Hindustan Aeronautics Limited (HAL.NS)": "HAL.NS",
         "Indian Oil Corporation Limited (IOC.NS)": "IOC.NS",
         "IRCTC Limited (IRCTC.NS)": "IRCTC.NS",
@@ -113,7 +110,7 @@ selected_display = st.selectbox("NSE Stock ಹುಡುಕಿ ಅಥವಾ ಆ�
 
 if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
-    st.session_state.stored_title = selected_display.split(" (")[0]
+    st.session_state.stored_title = selected_display.split(" (")
 
 @st.cache_data(ttl=60)
 def get_market_data(ticker):
@@ -161,19 +158,32 @@ try:
         hl2 = (df['High'] + df['Low']) / 2
         df['Basic_Upper'] = hl2 + (3 * df['ATR'])
         df['Basic_Lower'] = hl2 - (3 * df['ATR'])
-        df['Final_Upper'] = df['Basic_Upper']
-        df['Final_Lower'] = df['Basic_Lower']
-        df['SuperTrend_Signal'] = "BUY"
+        df['Final_Upper'] = df['Basic_Upper'].copy()
+        df['Final_Lower'] = df['Basic_Lower'].copy()
         
-        for i in range(1, len(df)):
+        # ಸುರಕ್ಷಿತ ಸಿಗ್ನಲ್ ಅರೇ ರೆಡಿ ಮಾಡುವುದು
+        st_signals = []
+        current_signal = "BUY"
+        
+        for i in range(len(df)):
+            if i == 0:
+                st_signals.append("BUY")
+                continue
+                
+            # Upper/Lower Band ಲೆಕ್ಕಾಚಾರ
             if df['Close'].iloc[i-1] <= df['Final_Upper'].iloc[i-1]:
-                df.loc[df.index[i], 'Final_Upper'] = min(df['Basic_Upper'].iloc[i], df['Final_Upper'].iloc[i-1]) if df['Basic_Upper'].iloc[i] < df['Final_Upper'].iloc[i-1] or df['Close'].iloc[i-1] > df['Final_Upper'].iloc[i-1] else df['Final_Upper'].iloc[i-1]
+                df.iloc[i, df.columns.get_loc('Final_Upper')] = min(df['Basic_Upper'].iloc[i], df['Final_Upper'].iloc[i-1])
             if df['Close'].iloc[i-1] >= df['Final_Lower'].iloc[i-1]:
-                df.loc[df.index[i], 'Final_Lower'] = max(df['Basic_Lower'].iloc[i], df['Final_Lower'].iloc[i-1])
+                df.iloc[i, df.columns.get_loc('Final_Lower')] = max(df['Basic_Lower'].iloc[i], df['Final_Lower'].iloc[i-1])
+            
+            # ಸಿಗ್ನಲ್ ನಿರ್ಧಾರ
             if df['Close'].iloc[i] <= df['Final_Upper'].iloc[i]:
-                df.loc[df.index[i], 'SuperTrend_Signal'] = "SELL"
+                current_signal = "SELL"
             else:
-                df.loc[df.index[i], 'SuperTrend_Signal'] = "BUY"
+                current_signal = "BUY"
+            st_signals.append(current_signal)
+            
+        df['SuperTrend_Signal'] = st_signals
 
         # UI ಮೆಟ್ರಿಕ್ಸ್
         st.subheader(f"⚡ {st.session_state.stored_title} ಇಂದಿನ ಸ್ಥಿತಿ")
@@ -183,7 +193,7 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್
+        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (BUG FIXED SPACING HERE)
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         st_signal = df['SuperTrend_Signal'].iloc[-1]
         bb_upper = df['BB_Upper'].iloc[-1]
@@ -200,3 +210,4 @@ try:
         with sig_col2:
             st.info("📊 **Bollinger Bands ಬ್ರೇಕ್‌ಔಟ್ ಅಲರ್ಟ್:**")
             if latest_close >= bb_upper:
+                st.success("🔥 **UPPER BAND BREAKOUT!**")
