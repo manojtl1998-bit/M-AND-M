@@ -27,7 +27,7 @@ if 'stored_ticker' not in st.session_state:
 if 'stored_title' not in st.session_state:
     st.session_state.stored_title = "Reliance Industries"
 
-# 2. ಪ್ರಮುಖ 150+ NSE ಸ್ಟಾಕ್‌ಗಳ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್
+# 2. ಪ್ರಮುಖ 70+ NSE ಸ್ಟಾಕ್‌ಗಳ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್
 def init_stock_database():
     return {
         "Reliance Industries Limited (RELIANCE.NS)": "RELIANCE.NS",
@@ -161,7 +161,6 @@ try:
         df['Final_Upper'] = df['Basic_Upper'].copy()
         df['Final_Lower'] = df['Basic_Lower'].copy()
         
-        # ಸುರಕ್ಷಿತ ಸಿಗ್ನಲ್ ಅರೇ ರೆಡಿ ಮಾಡುವುದು
         st_signals = []
         current_signal = "BUY"
         
@@ -170,13 +169,11 @@ try:
                 st_signals.append("BUY")
                 continue
                 
-            # Upper/Lower Band ಲೆಕ್ಕಾಚಾರ
             if df['Close'].iloc[i-1] <= df['Final_Upper'].iloc[i-1]:
                 df.iloc[i, df.columns.get_loc('Final_Upper')] = min(df['Basic_Upper'].iloc[i], df['Final_Upper'].iloc[i-1])
             if df['Close'].iloc[i-1] >= df['Final_Lower'].iloc[i-1]:
                 df.iloc[i, df.columns.get_loc('Final_Lower')] = max(df['Basic_Lower'].iloc[i], df['Final_Lower'].iloc[i-1])
             
-            # ಸಿಗ್ನಲ್ ನಿರ್ಧಾರ
             if df['Close'].iloc[i] <= df['Final_Upper'].iloc[i]:
                 current_signal = "SELL"
             else:
@@ -193,7 +190,7 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (BUG FIXED SPACING HERE)
+        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         st_signal = df['SuperTrend_Signal'].iloc[-1]
         bb_upper = df['BB_Upper'].iloc[-1]
@@ -211,3 +208,6 @@ try:
             st.info("📊 **Bollinger Bands ಬ್ರೇಕ್‌ಔಟ್ ಅಲರ್ಟ್:**")
             if latest_close >= bb_upper:
                 st.success("🔥 **UPPER BAND BREAKOUT!**")
+            elif latest_close <= bb_lower:
+                st.error("⚠️ **LOWER BAND BREAKOUT!**")
+            else:
