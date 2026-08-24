@@ -4,15 +4,21 @@ import numpy as np
 import yfinance as yf
 import json
 import os
-import time
 
 # 1. ಪೇಜ್ ಸೆಟಪ್
 st.set_page_config(page_title="M and M Quant Terminal", layout="wide")
 
 st.markdown("""
     <style>
+    /* ಇಡೀ ಆಪ್ ಬ್ಯಾಕ್‌ಗ್ರೌಂಡ್ ಬದಲಾವಣೆ */
     .stApp { background-color: #0b0f19; color: #ffffff; }
     div[data-testid="stMetric"] { background-color: #141a29; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; }
+    
+    /* ಸ್ಟ್ರೀಮ್‌ಲಿಟ್ ಲೋಗೋ ಮತ್ತು ಮೆನುವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಹೈಡ್ ಮಾಡಲು (HIDE STREAMLIT LOGO) */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    div[data-testid="stStatusWidget"] {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -52,12 +58,10 @@ selected_display = st.selectbox(
 
 if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
-    st.session_state.stored_title = selected_display.split(" (")[0]
+    st.session_state.stored_title = selected_display.split(" (")
 
-# RATE LIMIT ನಿವಾರಿಸಲು ಸುರಕ್ಷಿತ ಫೆಚರ್ ಇಂಜಿನ್ (FIXED)
-@st.cache_data(ttl=60) # ಪ್ರತಿ 60 ಸೆಕೆಂಡಿಗೆ ಮಾತ್ರ ಸರ್ವರ್ ಹಿಟ್ ಮಾಡುತ್ತದೆ
+@st.cache_data(ttl=60)
 def get_market_data(ticker):
-    # ಬ್ಲಾಕಿಂಗ್ ತಪ್ಪಿಸಲು ಸುರಕ್ಷಿತ ಇಂಟರ್ವಲ್ ಮತ್ತು ಪಿರಿಯಡ್ ಬಳಕೆ
     stock = yf.Ticker(ticker)
     data = stock.history(period="3mo", interval="1d")
     return data
@@ -66,14 +70,14 @@ try:
     df = get_market_data(st.session_state.stored_ticker)
     
     if df.empty:
-        st.error("⚠️ Yahoo Finance ನಿಂದ ಈ ಸ್ಟಾಕ್‌ನ ಡೇಟಾ ಸಿಗುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಪ್ರಯತ್ನಿಸಿ.")
+        st.error("⚠️ Yahoo Finance ನಿಂದ ಡೇಟಾ ಸಿಗುತ್ತಿಲ್ಲ.")
     else:
         latest_close = float(df['Close'].iloc[-1])
         prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else latest_close
         price_change = latest_close - prev_close
         pct_change = (price_change / prev_close) * 100
 
-        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
+        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್ ಪಾಸ್
         delta = df['Close'].diff()
         gain = np.where(delta > 0, delta, 0)
         loss = np.where(delta < 0, -delta, 0)
@@ -100,6 +104,40 @@ try:
         m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
+
+        # ---------------- NEW FEATURE: AUTOMATED BUY/SELL SIGNALS ----------------
+        st.write("### 🚨 M and M ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
+        
+        rsi_now = df['RSI'].iloc[-1]
+        macd_now = df['MACD'].iloc[-1]
+        signal_now = df['Signal'].iloc[-1]
+        
+        # ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಲಾಜಿಕ್ (Bullish Engulfing / Hammer)
+        is_bullish_engulfing = (df['Close'].iloc[-1] > df['Open'].iloc[-1]) and (df['Close'].iloc[-2] < df['Open'].iloc[-2]) and (df['Close'].iloc[-1] >= df['Open'].iloc[-2])
+        is_hammer = ((df['High'].iloc[-1] - df['Low'].iloc[-1]) > 3 * np.abs(df['Open'].iloc[-1] - df['Close'].iloc[-1])) and ((df['Close'].iloc[-1] - df['Low'].iloc[-1]) / (.001 + df['High'].iloc[-1] - df['Low'].iloc[-1]) > 0.6)
+
+        sig_col1, sig_col2 = st.columns(2)
+        
+        # 1. ಇಂಡಿಕೇಟರ್ ಸಿಗ್ನಲ್ (RSI + MACD)
+        with sig_col1:
+            st.info("📊 **ತಾಂತ್ರಿಕ ಸೂಚಕ ಸಿಗ್ನಲ್ (Technical Indicator):**")
+            if rsi_now < 35 or (macd_now > signal_now and df['MACD'].iloc[-2] <= df['Signal'].iloc[-2]):
+                st.success("🟢 **BUY SIGNAL (ಖರೀದಿಸಿ)**\n\nಸ್ಟಾಕ್ ಓವರ್‌ಸೋಲ್ಡ್ ವಲಯದಲ್ಲಿದೆ ಅಥವಾ MACD ಬುಲ್ಲಿಷ್ ಕ್ರಾಸ್‌ಓವರ್ ಮಾಡಿದೆ.")
+            elif rsi_now > 70 or (macd_now < signal_now and df['MACD'].iloc[-2] >= df['Signal'].iloc[-2]):
+                st.error("🔴 **SELL SIGNAL (ಮಾರಾಟ ಮಾಡಿ)**\n\nಸ್ಟಾಕ್ ಓವರ್‌ಬಾಟ್ ವಲಯದಲ್ಲಿದೆ ಅಥವಾ MACD ಬೇರಿಷ್ ಕ್ರಾಸ್‌ಓವರ್ ಮಾಡಿದೆ.")
+            else:
+                st.warning("🟡 **HOLD SIGNAL (ಕಾಯ್ದುಕೊಳ್ಳಿ)**\n\nಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆಯಲ್ಲಿ ಯಾವುದೇ ಬಲವಾದ ಟ್ರೆಂಡ್ ಇಲ್ಲ.")
+
+        # 2. ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಕ್ಯಾಂಡಲ್ ಅಲರ್ಟ್
+        with sig_col2:
+            st.info("🔍 **ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಅಲರ್ಟ್ (Price Action):**")
+            if is_bullish_engulfing:
+                st.success("🔥 **BULLISH ENGULFING ಕಂಡುಬಂದಿದೆ!**\n\nಖರೀದಿದಾರರು ಮಾರುಕಟ್ಟೆಯನ್ನು ನಿಯಂತ್ರಿಸುತ್ತಿದ್ದಾರೆ. ಬೆಲೆ ಏರಿಕೆಯಾಗಬಹುದು.")
+            elif is_hammer:
+                st.success("🔨 **HAMMER PATTERN ಮೂಡಿದೆ!**\n\nಕೆಳಗಿನ ಹಂತದಿಂದ ಬಲವಾದ ರಿವರ್ಸಲ್ ಸೂಚನೆ ಸಿಗುತ್ತಿದೆ.")
+            else:
+                st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
+        # --------------------------------------------------------------------------
 
         st.write("### 📈 ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಟ್ರೆಂಡ್ (Trend Chart)")
         st.line_chart(df['Close'])
