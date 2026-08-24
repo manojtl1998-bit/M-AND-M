@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import altair as alt
 import json
 import os
 
@@ -132,23 +133,38 @@ try:
             else:
                 st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
 
-        # --------------- 100% WORKING CANDLESTICK CHART ---------------
-        st.write("### 🕯️ ಪ್ರೊಫೆಷನಲ್ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (TradingView Style)")
+        # --------------- REAL TRADINGVIEW STYLE CANDLESTICK CHART (ALTAIR) ---------------
+        st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
         
-        # ಚಾರ್ಟ್‌ಗೆ ಬೇಕಾದ ಒಎಚ್‌ಎಲ್‌ಸಿ ಡೇಟಾ ಸಿದ್ಧಪಡಿಸುವುದು
         chart_df = df.copy().reset_index()
-        chart_df['Date'] = chart_df['Date'].dt.strftime('%Y-%m-%d')
-        chart_df['Color'] = np.where(chart_df['Close'] >= chart_df['Open'], '#26a69a', '#ef5350')
-
-        # ನೇಟಿವ್ ಲಿಂಕ್ಸ್ ಮೂಲಕ ಕ್ಯಾಂಡಲ್ ರಚಿಸುವ ಅತ್ಯಾಧುನಿಕ ಮ್ಯಾಟ್ರಿಕ್ಸ್
-        st.bar_chart(
-            data=chart_df,
-            x='Date',
-            y=['Open', 'High', 'Low', 'Close'],
-            color='Color',
-            stack=False
+        chart_df['Date'] = pd.to_datetime(chart_df['Date'])
+        
+        # ಹಸಿರು ಮತ್ತು ಕೆಂಪು ಕಂಡೀಷನ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
+        open_close_color = alt.condition(
+            "datum.Open <= datum.Close",
+            alt.value("#26a69a"), # TradingView Green
+            alt.value("#ef5350")  # TradingView Red
         )
-        # --------------------------------------------------------------
+
+        # 1. ಕ್ಯಾಂಡಲ್‌ನ ಮಧ್ಯದ ಕೋಲು (Wick/Rule)
+        wick = alt.Chart(chart_df).mark_rule(color="#d1d4dc", strokeWidth=1).encode(
+            x=alt.X('Date:T', title="ದಿನಾಂಕ", axis=alt.Axis(format='%d %b', grid=False)),
+            y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)),
+            y2='High:Q'
+        )
+
+        # 2. ಕ್ಯಾಂಡಲ್‌ನ ಬಾಡಿ (Body/Bar)
+        body = alt.Chart(chart_df).mark_bar(width=6).encode(
+            x='Date:T',
+            y='Open:Q',
+            y2='Close:Q',
+            color=open_close_color
+        )
+
+        # ಎರಡನ್ನೂ ಒಟ್ಟಿಗೆ ಸೇರಿಸಿ ಚಾರ್ಟ್ ಪ್ರದರ್ಶಿಸುವುದು
+        candles = (wick + body).properties(height=400, background='#0b0f19').configure_view(strokeWidth=0)
+        st.altair_chart(candles, use_container_width=True)
+        # ----------------------------------------------------------------------------------
 
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
         atr_now = float(df['ATR'].iloc[-1])
