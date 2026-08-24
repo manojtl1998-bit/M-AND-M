@@ -104,7 +104,7 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್
+        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್
         st.write("### 🚨 M and M ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         rsi_now = df['RSI'].iloc[-1]
         macd_now = df['MACD'].iloc[-1]
@@ -115,7 +115,7 @@ try:
 
         sig_col1, sig_col2 = st.columns(2)
         with sig_col1:
-            st.info("📊 **ತಾಂತ್ರಿಕ ಸೂಚಕ ಸಿಗ್ನಲ್ (Technical Indicator):**")
+            st.info("📊 **ತಾಂತ್ರಿಕ ಸೂಚಕ ಸಿಗ್ನಲ್:**")
             if rsi_now < 35 or (macd_now > signal_now and df['MACD'].iloc[-2] <= df['Signal'].iloc[-2]):
                 st.success("🟢 **BUY SIGNAL (ಖರೀದಿಸಿ)**")
             elif rsi_now > 70 or (macd_now < signal_now and df['MACD'].iloc[-2] >= df['Signal'].iloc[-2]):
@@ -124,7 +124,7 @@ try:
                 st.warning("🟡 **HOLD SIGNAL (ಕಾಯ್ದುಕೊಳ್ಳಿ)**")
 
         with sig_col2:
-            st.info("🔍 **ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಅಲರ್ಟ್ (Price Action):**")
+            st.info("🔍 **ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಅಲರ್ಟ್:**")
             if is_bullish_engulfing:
                 st.success("🔥 **BULLISH ENGULFING ಕಂಡುಬಂದಿದೆ!**")
             elif is_hammer:
@@ -132,52 +132,45 @@ try:
             else:
                 st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
 
-        # --------------- NEW TRADINGVIEW STYLE CANDLESTICK CHART ---------------
+        # --------------- FIXED TRADINGVIEW LIGHTWEIGHT CHART ---------------
         st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
         
-        # JavaScript ಮತ್ತು HTML ಮೂಲಕ ಹಗುರವಾದ ಕ್ಯಾಂಡಲ್ ಚಾರ್ಟ್ ಸೃಷ್ಟಿ
         chart_data = []
         for index, row in df.iterrows():
-            # ಚಾರ್ಟ್‌ಗೆ ಬೇಕಾದ ಡೇಟಾ ಮಾದರಿ ಜೋಡಣೆ
-            timestamp = int(index.timestamp() * 1000)
-            chart_data.append(f"{{ time: {timestamp}, open: {row['Open']}, high: {row['High']}, low: {row['Low']}, close: {row['Close']} }}")
+            # ದಿನಾಂಕ ಫಾರ್ಮ್ಯಾಟ್ ಫಿಕ್ಸ್ (YYYY-MM-DD string)
+            date_str = index.strftime('%Y-%m-%d')
+            chart_data.append(f"{{ time: '{date_str}', open: {row['Open']:.2f}, high: {row['High']:.2f}, low: {row['Low']:.2f}, close: {row['Close']:.2f} }}")
         
         data_string = ",\n".join(chart_data)
         
-        # Lightweight Charts ಲೈಬ್ರರಿ ಇಂಜೆಕ್ಷನ್ (TradingView ಅಧಿಕೃತ ಓಪನ್ ಸೋರ್ಸ್ ಎಂಜಿನ್)
         html_code = f"""
-        <div id="chart-container" style="width: 100%; height: 400px; background-color: #0b0f19;"></div>
+        <div id="tv-chart" style="width: 100%; height: 400px;"></div>
         <script src="https://unpkg.com"></script>
         <script>
-            const chartOptions = {{ 
-                layout: {{ backgroundColor: '#0b0f19', textColor: '#d1d4dc' }},
-                grid: {{ vertLines: {{ color: '#1f2937' }}, horzLines: {{ color: '#1f2937' }} }},
-                crosshair: {{ mode: LightweightCharts.CrosshairMode.Normal }},
-                rightPriceScale: {{ borderColor: '#2b2b43' }},
-                timeScale: {{ borderColor: '#2b2b43', timeVisible: true, secondsVisible: false }}
-            }};
-            const container = document.getElementById('chart-container');
-            const chart = LightweightCharts.createChart(container, chartOptions);
-            const candlestickSeries = chart.addCandlestickSeries({{
-                upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
-                wickUpColor: '#26a69a', wickDownColor: '#ef5350'
-            }});
-            
-            const data = [
-                {data_string}
-            ];
-            
-            candlestickSeries.setData(data);
-            chart.timeScale().fitContent();
-            
-            // ರೆಸ್ಪಾನ್ಸಿವ್ ಮಾಡಲು ವಿಂಡೋ ರಿಸೈಜ್ ಹ್ಯಾಂಡ್ಲರ್
-            window.addEventListener('resize', () => {{
-                chart.resize(container.clientWidth, 400);
-            }});
+            setTimeout(() => {{
+                const chart = LightweightCharts.createChart(document.getElementById('tv-chart'), {{
+                    width: document.getElementById('tv-chart').clientWidth,
+                    height: 400,
+                    layout: {{ backgroundColor: '#0b0f19', textColor: '#d1d4dc' }},
+                    grid: {{ vertLines: {{ color: '#141a29' }}, horzLines: {{ color: '#141a29' }} }},
+                    priceScale: {{ borderColor: '#1e293b' }},
+                    timeScale: {{ borderColor: '#1e293b' }}
+                }});
+                
+                const candleSeries = chart.addCandlestickSeries({{
+                    upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+                    wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+                }});
+                
+                candleSeries.setData([
+                    {data_string}
+                ]);
+                chart.timeScale().fitContent();
+            }}, 500);
         </script>
         """
         st.components.v1.html(html_code, height=420)
-        # -----------------------------------------------------------------------
+        # -------------------------------------------------------------------
 
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
         atr_now = float(df['ATR'].iloc[-1])
