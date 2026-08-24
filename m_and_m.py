@@ -10,15 +10,14 @@ st.set_page_config(page_title="M and M Quant Terminal", layout="wide")
 
 st.markdown("""
     <style>
-    /* ಇಡೀ ಆಪ್ ಬ್ಯಾಕ್‌ಗ್ರೌಂಡ್ ಬದಲಾವಣೆ */
     .stApp { background-color: #0b0f19; color: #ffffff; }
     div[data-testid="stMetric"] { background-color: #141a29; border: 1px solid #1e293b; padding: 15px; border-radius: 8px; }
-    
-    /* ಸ್ಟ್ರೀಮ್‌ಲಿಟ್ ಲೋಗೋ ಮತ್ತು ಮೆನುವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಹೈಡ್ ಮಾಡಲು (HIDE STREAMLIT LOGO) */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    div[data-testid="stStatusWidget"] {visibility: hidden;}
+    [data-testid="stHeader"] {display: none !important;}
+    [data-testid="stToolbar"] {display: none !important;}
+    [data-testid="stDecoration"] {display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    #MainMenu {visibility: hidden !important;}
+    .block-container {padding-top: 1rem !important; padding-bottom: 0rem !important;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -77,7 +76,7 @@ try:
         price_change = latest_close - prev_close
         pct_change = (price_change / prev_close) * 100
 
-        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್ ಪಾಸ್
+        # ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ ಮ್ಯಾಟ್ರಿಕ್ಸ್
         delta = df['Close'].diff()
         gain = np.where(delta > 0, delta, 0)
         loss = np.where(delta < 0, -delta, 0)
@@ -105,42 +104,80 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ---------------- NEW FEATURE: AUTOMATED BUY/SELL SIGNALS ----------------
+        # ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್
         st.write("### 🚨 M and M ಆಟೋಮ್ಯಾಟಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
-        
         rsi_now = df['RSI'].iloc[-1]
         macd_now = df['MACD'].iloc[-1]
         signal_now = df['Signal'].iloc[-1]
         
-        # ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಲಾಜಿಕ್ (Bullish Engulfing / Hammer)
         is_bullish_engulfing = (df['Close'].iloc[-1] > df['Open'].iloc[-1]) and (df['Close'].iloc[-2] < df['Open'].iloc[-2]) and (df['Close'].iloc[-1] >= df['Open'].iloc[-2])
         is_hammer = ((df['High'].iloc[-1] - df['Low'].iloc[-1]) > 3 * np.abs(df['Open'].iloc[-1] - df['Close'].iloc[-1])) and ((df['Close'].iloc[-1] - df['Low'].iloc[-1]) / (.001 + df['High'].iloc[-1] - df['Low'].iloc[-1]) > 0.6)
 
         sig_col1, sig_col2 = st.columns(2)
-        
-        # 1. ಇಂಡಿಕೇಟರ್ ಸಿಗ್ನಲ್ (RSI + MACD)
         with sig_col1:
             st.info("📊 **ತಾಂತ್ರಿಕ ಸೂಚಕ ಸಿಗ್ನಲ್ (Technical Indicator):**")
             if rsi_now < 35 or (macd_now > signal_now and df['MACD'].iloc[-2] <= df['Signal'].iloc[-2]):
-                st.success("🟢 **BUY SIGNAL (ಖರೀದಿಸಿ)**\n\nಸ್ಟಾಕ್ ಓವರ್‌ಸೋಲ್ಡ್ ವಲಯದಲ್ಲಿದೆ ಅಥವಾ MACD ಬುಲ್ಲಿಷ್ ಕ್ರಾಸ್‌ಓವರ್ ಮಾಡಿದೆ.")
+                st.success("🟢 **BUY SIGNAL (ಖರೀದಿಸಿ)**")
             elif rsi_now > 70 or (macd_now < signal_now and df['MACD'].iloc[-2] >= df['Signal'].iloc[-2]):
-                st.error("🔴 **SELL SIGNAL (ಮಾರಾಟ ಮಾಡಿ)**\n\nಸ್ಟಾಕ್ ಓವರ್‌ಬಾಟ್ ವಲಯದಲ್ಲಿದೆ ಅಥವಾ MACD ಬೇರಿಷ್ ಕ್ರಾಸ್‌ಓವರ್ ಮಾಡಿದೆ.")
+                st.error("🔴 **SELL SIGNAL (ಮಾರಾಟ ಮಾಡಿ)**")
             else:
-                st.warning("🟡 **HOLD SIGNAL (ಕಾಯ್ದುಕೊಳ್ಳಿ)**\n\nಪ್ರಸ್ತುತ ಮಾರುಕಟ್ಟೆಯಲ್ಲಿ ಯಾವುದೇ ಬಲವಾದ ಟ್ರೆಂಡ್ ಇಲ್ಲ.")
+                st.warning("🟡 **HOLD SIGNAL (ಕಾಯ್ದುಕೊಳ್ಳಿ)**")
 
-        # 2. ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಕ್ಯಾಂಡಲ್ ಅಲರ್ಟ್
         with sig_col2:
             st.info("🔍 **ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಪ್ಯಾಟರ್ನ್ ಅಲರ್ಟ್ (Price Action):**")
             if is_bullish_engulfing:
-                st.success("🔥 **BULLISH ENGULFING ಕಂಡುಬಂದಿದೆ!**\n\nಖರೀದಿದಾರರು ಮಾರುಕಟ್ಟೆಯನ್ನು ನಿಯಂತ್ರಿಸುತ್ತಿದ್ದಾರೆ. ಬೆಲೆ ಏರಿಕೆಯಾಗಬಹುದು.")
+                st.success("🔥 **BULLISH ENGULFING ಕಂಡುಬಂದಿದೆ!**")
             elif is_hammer:
-                st.success("🔨 **HAMMER PATTERN ಮೂಡಿದೆ!**\n\nಕೆಳಗಿನ ಹಂತದಿಂದ ಬಲವಾದ ರಿವರ್ಸಲ್ ಸೂಚನೆ ಸಿಗುತ್ತಿದೆ.")
+                st.success("🔨 **HAMMER PATTERN ಮೂಡಿದೆ!**")
             else:
                 st.write("ಪ್ರಸ್ತುತ ಯಾವುದೇ ಪ್ರಮುಖ ರಿವರ್ಸಲ್ ಕ್ಯಾಂಡಲ್ ಪ್ಯಾಟರ್ನ್ ಮೂಡಿಲ್ಲ.")
-        # --------------------------------------------------------------------------
 
-        st.write("### 📈 ಪ್ರೈಸ್ ಆಕ್ಷನ್ ಟ್ರೆಂಡ್ (Trend Chart)")
-        st.line_chart(df['Close'])
+        # --------------- NEW TRADINGVIEW STYLE CANDLESTICK CHART ---------------
+        st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
+        
+        # JavaScript ಮತ್ತು HTML ಮೂಲಕ ಹಗುರವಾದ ಕ್ಯಾಂಡಲ್ ಚಾರ್ಟ್ ಸೃಷ್ಟಿ
+        chart_data = []
+        for index, row in df.iterrows():
+            # ಚಾರ್ಟ್‌ಗೆ ಬೇಕಾದ ಡೇಟಾ ಮಾದರಿ ಜೋಡಣೆ
+            timestamp = int(index.timestamp() * 1000)
+            chart_data.append(f"{{ time: {timestamp}, open: {row['Open']}, high: {row['High']}, low: {row['Low']}, close: {row['Close']} }}")
+        
+        data_string = ",\n".join(chart_data)
+        
+        # Lightweight Charts ಲೈಬ್ರರಿ ಇಂಜೆಕ್ಷನ್ (TradingView ಅಧಿಕೃತ ಓಪನ್ ಸೋರ್ಸ್ ಎಂಜಿನ್)
+        html_code = f"""
+        <div id="chart-container" style="width: 100%; height: 400px; background-color: #0b0f19;"></div>
+        <script src="https://unpkg.com"></script>
+        <script>
+            const chartOptions = {{ 
+                layout: {{ backgroundColor: '#0b0f19', textColor: '#d1d4dc' }},
+                grid: {{ vertLines: {{ color: '#1f2937' }}, horzLines: {{ color: '#1f2937' }} }},
+                crosshair: {{ mode: LightweightCharts.CrosshairMode.Normal }},
+                rightPriceScale: {{ borderColor: '#2b2b43' }},
+                timeScale: {{ borderColor: '#2b2b43', timeVisible: true, secondsVisible: false }}
+            }};
+            const container = document.getElementById('chart-container');
+            const chart = LightweightCharts.createChart(container, chartOptions);
+            const candlestickSeries = chart.addCandlestickSeries({{
+                upColor: '#26a69a', downColor: '#ef5350', borderVisible: false,
+                wickUpColor: '#26a69a', wickDownColor: '#ef5350'
+            }});
+            
+            const data = [
+                {data_string}
+            ];
+            
+            candlestickSeries.setData(data);
+            chart.timeScale().fitContent();
+            
+            // ರೆಸ್ಪಾನ್ಸಿವ್ ಮಾಡಲು ವಿಂಡೋ ರಿಸೈಜ್ ಹ್ಯಾಂಡ್ಲರ್
+            window.addEventListener('resize', () => {{
+                chart.resize(container.clientWidth, 400);
+            }});
+        </script>
+        """
+        st.components.v1.html(html_code, height=420)
+        # -----------------------------------------------------------------------
 
         st.write("### 🛡️ ಇನ್ಸ್ಟಿಟ್ಯೂಷನಲ್ ರಿಸ್ಕ್ ಮ್ಯಾನೇಜ್ಮೆಂಟ್ ಗ್ರಿಡ್")
         atr_now = float(df['ATR'].iloc[-1])
