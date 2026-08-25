@@ -150,7 +150,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.8")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.9")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -227,14 +227,14 @@ else:
     total_trade_commitment = allocated_position_size * entry_price
     leverage_multiple = total_trade_commitment / capital_allocation
 
-    # UI Grid Display
+    # UI Grid Display with explicit block formatting
     r1, r2, r3, r4 = pd_st.columns(4)
+    
     with r1:
         pd_st.info("**Absolute Risk Buffer**")
         pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
         pd_st.caption(f"Strict {max_risk_per_trade}% threshold limit.")
+        
     with r2:
         pd_st.warning("**Dynamic Stop-Loss Line**")
         pd_st.markdown(f"### ₹{stop_loss:,.2f}")
-        pd_st.caption("Calculated via 2x ATR Structural Trailing Model.")
-    with r3:
