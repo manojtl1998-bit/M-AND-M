@@ -110,11 +110,10 @@ if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
     st.session_state.stored_title = selected_display.split(" (")
 
-# 3. ಹೈ-ಸ್ಪೀಡ್ ಲೋಡರ್ ಮತ್ತು ಬ್ಯಾಕಪ್ ಇಂಜಿನ್ (NaN BUG FIX)
+# 3. ಹೈ-ಸ್ಪೀಡ್ ಲೋಡರ್ ಮತ್ತು ಬ್ಯಾಕಪ್ ಇಂಜಿನ್
 @st.cache_data(ttl=10)
 def get_market_data(ticker):
     stock = yf.Ticker(ticker)
-    # ಮಾರುಕಟ್ಟೆ ಮುಚ್ಚಿರುವಾಗ 1-ನಿಮಿಷದ ಡೇಟಾ ಸಿಗದಿದ್ದರೆ, ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದಿನದ ಹಿಸ್ಟರಿಗೆ (1-Day Candles) ಬದಲಾಗುತ್ತದೆ
     data = stock.history(period="5d", interval="1m")
     if data.empty or len(data) < 5:
         data = stock.history(period="3mo", interval="1d")
@@ -198,13 +197,16 @@ indicator_data = pd.DataFrame({
 })
 st.dataframe(indicator_data, use_container_width=True, hide_index=True)
 
-# TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (ALTAIR AUTOMATIC FALLBACK)
+# TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (BUG FIXED: INDEX TIMESTAMPS FOR ALTAIR)
 st.write("### 🕯️ TradingView ಶೈಲಿಯ ರಿಯಲ್-ಟೈಮ್ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
 chart_df = df.copy().reset_index()
-chart_df['Date'] = pd.to_datetime(chart_df['Date'])
+
+# ಇಂಡೆಕ್ಸ್ ಹೆಸರು 'Date' ಅಥವಾ 'Datetime' ಯಾವುದೇ ಇರಲಿ, ಅದನ್ನು 'Timeline' ಎಂದು ಬದಲಾಯಿಸುವುದು (FIXED)
+chart_df.columns.values[0] = 'Timeline'
+chart_df['Timeline'] = pd.to_datetime(chart_df['Timeline'])
 
 open_close_color = alt.condition("datum.Open <= datum.Close", alt.value("#26a69a"), alt.value("#ef5350"))
 wick = alt.Chart(chart_df).mark_rule(color="#d1d4dc", strokeWidth=1).encode(
-    x=alt.X('Date:T', title="ದಿನಾಂಕ / ಸಮಯ", axis=alt.Axis(grid=False)),
+    x=alt.X('Timeline:T', title="ದಿನಾಂಕ / ಸಮಯ", axis=alt.Axis(grid=False)),
     y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)), y2='High:Q'
 )
