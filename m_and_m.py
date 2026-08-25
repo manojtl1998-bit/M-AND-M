@@ -1,3 +1,9 @@
+import numpy as np
+
+# ಡೇಟಾವನ್ನು ಕ್ಲೀನ್ ಮಾಡುವ ಕೋಡ್
+if matrix_df is not None and not matrix_df.empty:
+    # ಲೋಡಿಂಗ್ ಸಮಸ್ಯೆಯನ್ನು ತಡೆಯಲು NaN ಮತ್ತು Infinite ವ್ಯಾಲ್ಯೂಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ
+    matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
 import streamlit as st
 
 # ಹೊಸ ಡೆಪ್ಲಾಯ್ ಆದಾಗ ಹಳೆಯ ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುತ್ತದೆ
