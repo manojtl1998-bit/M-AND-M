@@ -110,10 +110,14 @@ if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
     st.session_state.stored_title = selected_display.split(" (")
 
-@st.cache_data(ttl=60)
+# 3. ಹೈ-ಸ್ಪೀಡ್ ಲೋಡರ್ ಮತ್ತು ಬ್ಯಾಕಪ್ ಇಂಜಿನ್ (NaN BUG FIX)
+@st.cache_data(ttl=10)
 def get_market_data(ticker):
     stock = yf.Ticker(ticker)
-    data = stock.history(period="3mo", interval="1d")
+    # ಮಾರುಕಟ್ಟೆ ಮುಚ್ಚಿರುವಾಗ 1-ನಿಮಿಷದ ಡೇಟಾ ಸಿಗದಿದ್ದರೆ, ಸ್ವಯಂಚಾಲಿತವಾಗಿ ದಿನದ ಹಿಸ್ಟರಿಗೆ (1-Day Candles) ಬದಲಾಗುತ್ತದೆ
+    data = stock.history(period="5d", interval="1m")
+    if data.empty or len(data) < 5:
+        data = stock.history(period="3mo", interval="1d")
     return data
 
 df = get_market_data(st.session_state.stored_ticker)
@@ -175,14 +179,13 @@ for i in range(len(df)):
 df['SuperTrend_Signal'] = st_signals
 
 # UI ಮೆಟ್ರಿಕ್ಸ್ ಗ್ರಿಡ್
-st.subheader(f"⚡ {st.session_state.stored_title} ಇಂದಿನ ಸ್ಥಿತಿ")
+st.subheader(f"⚡ {st.session_state.stored_title} ಪ್ರಸ್ತುತ ಸ್ಥಿತಿ")
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
-m_col1.metric("ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
+m_col1.metric("ಮಾರುಕಟ್ಟೆ ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
 m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
 m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
 m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-# 🚨 ERROR-FREE FLAT MATRIX LEDGER (No structure bugs possible)
 st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
 
 st_signal_value = df['SuperTrend_Signal'].iloc[-1]
@@ -195,18 +198,13 @@ indicator_data = pd.DataFrame({
 })
 st.dataframe(indicator_data, use_container_width=True, hide_index=True)
 
-# TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (ALTAIR)
-st.write("### 🕯️ TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
+# TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (ALTAIR AUTOMATIC FALLBACK)
+st.write("### 🕯️ TradingView ಶೈಲಿಯ ರಿಯಲ್-ಟೈಮ್ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
 chart_df = df.copy().reset_index()
 chart_df['Date'] = pd.to_datetime(chart_df['Date'])
 
 open_close_color = alt.condition("datum.Open <= datum.Close", alt.value("#26a69a"), alt.value("#ef5350"))
 wick = alt.Chart(chart_df).mark_rule(color="#d1d4dc", strokeWidth=1).encode(
-    x=alt.X('Date:T', title="ದಿನಾಂಕ", axis=alt.Axis(format='%d %b', grid=False)),
+    x=alt.X('Date:T', title="ದಿನಾಂಕ / ಸಮಯ", axis=alt.Axis(grid=False)),
     y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)), y2='High:Q'
 )
-body = alt.Chart(chart_df).mark_bar(width=6).encode(x='Date:T', y='Open:Q', y2='Close:Q', color=open_close_color)
-
-candles = (wick + body).properties(height=400, background='#0b0f19').configure_view(strokeWidth=0)
-st.altair_chart(candles, use_container_width=True)
-
