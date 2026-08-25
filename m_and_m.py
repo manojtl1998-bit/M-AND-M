@@ -141,7 +141,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.4 Stable")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.5 Stable")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -184,18 +184,15 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. TRADINGVIEW / WEBULL INTERACTIVE CANDLESTICK GRID
+    # 4. TRADINGVIEW / WEBULL INTERACTIVE CANDLESTICK GRID (BUG-FREE)
     # ==========================================
     pd_st.subheader("📈 TradingView Candlestick Matrix Pattern")
     
     chart_df = signal_ledger.tail(45).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Generate HTML Component safely without f-string quote collision
-    candles_html = """
-    <div style="background-color: #131722; padding: 15px; border-radius: 8px; border: 1px solid #2a2e39; font-family: sans-serif; overflow-x: auto;">
-        <div style="display: flex; align-items: flex-end; height: 320px; gap: 8px; border-bottom: 2px solid #2a2e39; padding-bottom: 10px; min-width: 900px;">
-    """
+    # Safe Layout Init
+    header_html = '<div style="background-color: #131722; padding: 15px; border-radius: 8px; border: 1px solid #2a2e39; font-family: sans-serif; overflow-x: auto;"><div style="display: flex; align-items: flex-end; height: 320px; gap: 8px; border-bottom: 2px solid #2a2e39; padding-bottom: 10px; min-width: 900px;">'
     
     closes = chart_df['Close'].values.flatten()
     opens = chart_df['Open'].values.flatten()
@@ -205,6 +202,7 @@ else:
     min_p, max_p = min(lows), max(highs)
     p_range = (max_p - min_p) if (max_p - min_p) > 0 else 1
     
+    blocks_html = ""
     for i in range(len(chart_df)):
         op, cl, hi, lo = opens[i], closes[i], highs[i], lows[i]
         is_bull = cl >= op
@@ -222,13 +220,10 @@ else:
         wick_h = max(1, y_max - y_min)
         body_h = max(2, y_top - y_bot)
         
-        # Append elements using pure string formatting to bypass f-string triple quote errors
-        candles_html += f"""
-        <div style="display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; height: 300px;">
-            <div style="position: absolute; bottom: {y_min}px; width: 2px; height: {wick_h}px; background-color: {color}; opacity: 0.7;"></div>
-            <div style="position: absolute; bottom: {y_bot}px; width: 14px; height: {body_h}px; background-color: {color}; border-radius: 1px;"></div>
-        </div>
-        """
+        # Pure string block builder to guarantee absolute zero syntax errors
+        node = '<div style="display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; height: 300px;">'
+        node += '<div style="position: absolute; bottom: ' + str(y_min) + 'px; width: 2px; height: ' + str(wick_h) + 'px; background-color: ' + color + '; opacity: 0.7;"></div>'
+        node += '<div style="position: absolute; bottom: ' + str(y_bot) + 'px; width: 14px; height: ' + str(body_h) + 'px; background-color: ' + color + '; border-radius: 1px;"></div>'
+        node += '</div>'
+        blocks_html += node
     
-    candles_html += """
-        </div>
