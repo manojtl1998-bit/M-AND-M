@@ -179,30 +179,46 @@ if matrix_rows:
 else:
     st.warning("Technical Matrix builds are empty. Reloading database...")
 
-# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART
+# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (SAFE FOR ALL YFINANCE INDEX TYPES)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
 if selected_stock in all_data:
-    chart_df = all_data[selected_stock].reset_index()
+    # ಡೇಟಾವನ್ನು ಕಾಪಿ ಮಾಡಿ ಇಂಡೆಕ್ಸ್ ರೀಸೆಟ್ ಮಾಡುವುದು
+    chart_df = all_data[selected_stock].copy().reset_index()
     
-    # Base chart for Candlestick
-    base = alt.Chart(chart_df.tail(30)).encode(
-        x=alt.X('Date:T', axis=alt.Axis(title="Timeline")),
-        color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#ff5353"))
+    # yfinance ಇಂಡೆಕ್ಸ್ ಹೆಸರನ್ನು ಕಡ್ಡಾಯವಾಗಿ 'Date' ಎಂದು ಬದಲಾಯಿಸುವ ಲೇಯರ್
+    chart_df.columns = [col.to_series().iloc[0] if isinstance(col, pd.MultiIndex) else col for col in chart_df.columns]
+    chart_df = chart_df.rename(columns={chart_df.columns[0]: 'Date'})
+    
+    # ಜಾವಾಸ್ಕ್ರಿಪ್ಟ್ ಸೀರಿಯಲೈಸೇಶನ್ ದೋಷ ತಡೆಯಲು ಡೇಟಾ ಟೈಪ್ ಬದಲಾವಣೆ
+    chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
+    
+    # ಕೊನೆಯ 30 ದಿನಗಳ ಡೇಟಾ ಮಾತ್ರ
+    plot_data = chart_df.tail(30)
+    
+    # ಬೇಸ್ ಚಾರ್ಟ್ ಕಾನ್ಫಿಗರೇಶನ್
+    base = alt.Chart(plot_data).encode(
+        x=alt.X('Date:N', axis=alt.Axis(title="Timeline", labelAngle=-45)),
+        color=alt.condition(
+            "datum.Open <= datum.Close", 
+            alt.value("#00d09c"),  # Groww Green
+            alt.value("#ff5353")   # Groww Red
+        )
     )
     
-    # Wick
+    # Wick (ಕನಿಷ್ಠ ಮತ್ತು ಗರಿಷ್ಠ ಬೆಲೆ)
     rule = base.mark_rule().encode(
         y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
         y2=alt.Y('High:Q')
     )
     
-    # Body
+    # Body (ಓಪನ್ ಮತ್ತು ಕ್ಲೋಸ್ ಬೆಲೆ)
     bar = base.mark_bar().encode(
         y='Open:Q',
         y2='Close:Q'
     )
     
     st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
+    # ಎರಡು ಲೇಯರ್‌ಗಳನ್ನು ಕಂಬೈನ್ ಮಾಡಿ ಚಾರ್ಟ್ ಪ್ರದರ್ಶಿಸುವುದು
     st.altair_chart(rule + bar, use_container_width=True)
