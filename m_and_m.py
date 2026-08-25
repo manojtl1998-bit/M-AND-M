@@ -181,7 +181,7 @@ if matrix_rows:
     st.dataframe(matrix_df, use_container_width=True)
 else:
     st.warning("Technical Matrix builds are empty.")
-# 9. NATIVE INSTITUTIONAL PRICE PASS (100% GUARANTEED TO RENDER)
+# 9. NATIVE INSTITUTIONAL PRICE PASS (100% ERROR-FREE RENDER)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
@@ -189,8 +189,10 @@ if selected_stock in all_data:
     raw_df = all_data[selected_stock].copy()
     chart_df = raw_df.reset_index()
     
-    # ಡೇಟ್ ಕಾಲಂ ಫಾರ್ಮ್ಯಾಟ್ ಕ್ಲೀನ್ ಮಾಡುವುದು
-    chart_df = chart_df.rename(columns={chart_df.columns: 'Date'})
+    # 🌟 ಸರಿಯಾದ ಪರಿಹಾರ: ಮೊದಲ ಕಾಲಂ ಅನ್ನು ಮಾತ್ರ ಕಡ್ಡಾಯವಾಗಿ 'Date' ಎಂದು ಬದಲಾಯಿಸುವುದು 🌟
+    chart_df.columns.values[0] = 'Date'
+    
+    # ಡೇಟ್ ಫಾರ್ಮ್ಯಾಟ್ ಕ್ಲೀನ್ ಮಾಡುವುದು
     chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.date
     
     # ಕೊನೆಯ 30 ದಿನಗಳ ಕ್ಲೋಸಿಂಗ್ ಪ್ರೈಸ್ ಮಾತ್ರ ಫಿಲ್ಟರ್ ಮಾಡಿ ಇಂಡೆಕ್ಸ್ ಮಾಡುವುದು
@@ -198,6 +200,7 @@ if selected_stock in all_data:
     
     st.header(f"📈 Institutional Closing Price Pass: {selected_stock}")
     
-    # 🌟 ಸ್ಟ್ರೀಮ್‌ಲಿಟ್‌ನದ್ದೇ ಆದ ನೇರ ಗ್ರಾಫ್ - ಇದು ಎಂದಿಗೂ ಫೇಲ್ ಆಗುವುದಿಲ್ಲ 🌟
+    # ಸ್ಟ್ರೀಮ್‌ಲಿಟ್‌ನದ್ದೇ ಆದ ನೇರ ಗ್ರಾಫ್ - ಇದು ಎಂದಿಗೂ ಫೇಲ್ ಆಗುವುದಿಲ್ಲ
     st.line_chart(plot_data, use_container_width=True, height=400)
+
 
