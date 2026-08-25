@@ -33,18 +33,18 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=600)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with strict flattening"""
+    """Fetches real-time institutional data feeds from yfinance with flawless single-level index flattening"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
             return pd.DataFrame()
             
-        # AGGRESSIVE MULTI-INDEX CLEANING NODE
+        # STAGE 1 MULTI-INDEX FLATTENING
         if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = [col for col in raw_df.columns]
-        else:
-            raw_df.columns = [str(col) for col in raw_df.columns]
+            raw_df.columns = raw_df.columns.get_level_values(0)
             
+        # Standardize strings just in case
+        raw_df.columns = [str(col).strip() for col in raw_df.columns]
         raw_df = raw_df.reset_index()
         
         # Ensure standardized naming convention across all versions
@@ -148,7 +148,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.3")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.4")
 pd_st.markdown("---")
 
 # 70+ Internal NSE Stocks Database Node
@@ -233,6 +233,3 @@ else:
     ).configure_axis(
         grid=True, gridColor='#242b35', labelColor='#8892b0', titleColor='#ffffff'
     ).configure_view(
-        strokeOpacity=0, fill='#0e1117'
-    )
-
