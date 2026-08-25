@@ -102,7 +102,42 @@ def init_stock_database():
 
 nse_stocks = init_stock_database()
 
+# ---------------- NEW FEATURE: LIVE MARKET MOVEMENT (NIFTY & SENSEX) ----------------
 st.title("🚀 M and M Institutional Quant Terminal")
+st.write("### 📊 ಇಂದಿನ ಮಾರ್ಕೆಟ್ ಮೂವ್ಮೆಂಟ್ (Overall Market Status)")
+
+@st.cache_data(ttl=15)
+def get_index_data(ticker):
+    idx = yf.Ticker(ticker)
+    data = idx.history(period="5d", interval="1m")
+    if data.empty or len(data) < 2:
+        data = idx.history(period="1mo", interval="1d")
+    return data
+
+# ನಿಫ್ಟಿ ಮತ್ತು ಸೆನ್ಸೆಕ್ಸ್ ಡೇಟಾ ಲೋಡ್ ಮಾಡುವುದು
+try:
+    nifty_df = get_index_data("^NSEI")
+    sensex_df = get_index_data("^BSESN")
+
+    nifty_now = float(nifty_df['Close'].iloc[-1])
+    nifty_prev = float(nifty_df['Close'].iloc[-2])
+    nifty_diff = nifty_now - nifty_prev
+    nifty_pct = (nifty_diff / nifty_prev) * 100
+
+    sensex_now = float(sensex_df['Close'].iloc[-1])
+    sensex_prev = float(sensex_df['Close'].iloc[-2])
+    sensex_diff = sensex_now - sensex_prev
+    sensex_pct = (sensex_diff / sensex_prev) * 100
+
+    # ಸ್ಕ್ರೀನ್ ಮೇಲ್ಭಾಗದಲ್ಲಿ ಪ್ರದರ್ಶನ
+    idx_col1, idx_col2 = st.columns(2)
+    idx_col1.metric("🟢 NIFTY 50 (NSE)", f"{nifty_now:,.2f}", f"{nifty_diff:+.2f} ({nifty_pct:+.2f}%)")
+    idx_col2.metric("🔵 SENSEX (BSE)", f"{sensex_now:,.2f}", f"{sensex_diff:+.2f} ({sensex_pct:+.2f}%)")
+except Exception:
+    st.info("💡 ಮಾರುಕಟ್ಟೆ ಚಲನೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ—ಬೆಳಗ್ಗೆ 09:15 ರ ನಂತರ ಇದು ಲೈವ್ ಟಿಕ್ ನೀಡುತ್ತದೆ.")
+
+st.markdown("---")
+# -------------------------------------------------------------------------------------
 
 selected_display = st.selectbox("NSE Stock ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆ ಮಾಡಿ:", options=list(nse_stocks.keys()))
 
@@ -110,7 +145,6 @@ if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
     st.session_state.stored_title = selected_display.split(" (")
 
-# 3. ಹೈ-ಸ್ಪೀಡ್ ಲೋಡರ್ ಮತ್ತು ಬ್ಯಾಕಪ್ ಇಂಜಿನ್
 @st.cache_data(ttl=10)
 def get_market_data(ticker):
     stock = yf.Ticker(ticker)
@@ -182,31 +216,3 @@ st.subheader(f"⚡ {st.session_state.stored_title} ಪ್ರಸ್ತುತ ಸ�
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 m_col1.metric("ಮಾರುಕಟ್ಟೆ ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
 m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
-m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
-m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
-
-st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
-
-st_signal_value = df['SuperTrend_Signal'].iloc[-1]
-bb_upper_val = df['BB_Upper'].iloc[-1]
-bb_lower_val = df['BB_Lower'].iloc[-1]
-
-indicator_data = pd.DataFrame({
-    "ಅಲ್ಗಾರಿದಮ್ ಮತ್ತು ಸೂಚಕ": ["SuperTrend Signal Engine", "Bollinger Upper Band", "Bollinger Lower Band", "Current Price Status"],
-    "ಲೆಕ್ಕಾಚಾರದ ಮೌಲ್ಯ": [st_signal_value, f"₹{bb_upper_val:.2f}", f"₹{bb_lower_val:.2f}", f"₹{latest_close:.2f}"]
-})
-st.dataframe(indicator_data, use_container_width=True, hide_index=True)
-
-# TradingView ಶೈಲಿಯ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್ (BUG FIXED: INDEX TIMESTAMPS FOR ALTAIR)
-st.write("### 🕯️ TradingView ಶೈಲಿಯ ರಿಯಲ್-ಟೈಮ್ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ಚಾರ್ಟ್")
-chart_df = df.copy().reset_index()
-
-# ಇಂಡೆಕ್ಸ್ ಹೆಸರು 'Date' ಅಥವಾ 'Datetime' ಯಾವುದೇ ಇರಲಿ, ಅದನ್ನು 'Timeline' ಎಂದು ಬದಲಾಯಿಸುವುದು (FIXED)
-chart_df.columns.values[0] = 'Timeline'
-chart_df['Timeline'] = pd.to_datetime(chart_df['Timeline'])
-
-open_close_color = alt.condition("datum.Open <= datum.Close", alt.value("#26a69a"), alt.value("#ef5350"))
-wick = alt.Chart(chart_df).mark_rule(color="#d1d4dc", strokeWidth=1).encode(
-    x=alt.X('Timeline:T', title="ದಿನಾಂಕ / ಸಮಯ", axis=alt.Axis(grid=False)),
-    y=alt.Y('Low:Q', title="ಬೆಲೆ (INR)", scale=alt.Scale(zero=False)), y2='High:Q'
-)
