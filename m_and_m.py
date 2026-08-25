@@ -2,6 +2,7 @@ import streamlit as pd_st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import altair as alt
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -9,7 +10,7 @@ from datetime import datetime, timedelta
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
-    layout="wide",  # Stretch to match screen borders
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
@@ -22,10 +23,10 @@ pd_st.markdown("""
         }
         .block-container {
             max-width: 100% !important;
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-            padding-top: 1rem !important;
-            padding-bottom: 1rem !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+            padding-top: 1.5rem !important;
+            padding-bottom: 1.5rem !important;
         }
         h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
         div[data-testid="stMetricValue"] { color: #00c853 !important; font-weight: bold; font-size: 24px !important; }
@@ -38,7 +39,6 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=300)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches and flattens real-time structural asset feeds from yfinance"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
@@ -60,7 +60,6 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
         return pd.DataFrame()
 
 def calculate_quant_matrix(df: pd.DataFrame):
-    """Executes Vectorized Matrix Passes: RSI, MACD, and Chandelier Trailing Channel"""
     df = df.copy()
     if len(df) < 30:
         return df
@@ -141,7 +140,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.5 Stable")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | TradingView Core v3.6")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -184,46 +183,69 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. TRADINGVIEW / WEBULL INTERACTIVE CANDLESTICK GRID (BUG-FREE)
+    # 4. TRADINGVIEW STABLE ALTAIR CANDLESTICK CHART
     # ==========================================
-    pd_st.subheader("📈 TradingView Candlestick Matrix Pattern")
+    pd_st.subheader("📈 TradingView Candlestick Matrix & Chandelier Line")
     
-    chart_df = signal_ledger.tail(45).copy()
+    chart_df = signal_ledger.tail(60).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Safe Layout Init
-    header_html = '<div style="background-color: #131722; padding: 15px; border-radius: 8px; border: 1px solid #2a2e39; font-family: sans-serif; overflow-x: auto;"><div style="display: flex; align-items: flex-end; height: 320px; gap: 8px; border-bottom: 2px solid #2a2e39; padding-bottom: 10px; min-width: 900px;">'
+    for col in ['Open', 'High', 'Low', 'Close', 'Chandelier_Long']:
+        chart_df[col] = chart_df[col].values.flatten()
+
+    # Base setup for grid mapping
+    base = alt.Chart(chart_df).encode(
+        x=alt.X(f'{time_col}:T', title="Timeline Matrix"),
+        color=alt.condition("datum.Open <= datum.Close", alt.value("#089981"), alt.value("#f23645"))
+    )
+
+    # Wick Layer
+    wicks = base.mark_rule(opacity=0.8).encode(
+        y=alt.Y('Low:Q', scale=alt.Scale(zero=False), title="Price Scale (INR)"),
+        y2='High:Q'
+    )
+
+    # Candle Body Layer
+    bodies = base.mark_bar(width=8).encode(
+        y='Open:Q',
+        y2='Close:Q'
+    )
+
+    # Chandelier Stop Loss Line (TradingView Matte Yellow)
+    chandelier = alt.Chart(chart_df).mark_line(color='#ffea00', strokeWidth=2).encode(
+        x=f'{time_col}:T',
+        y='Chandelier_Long:Q'
+    )
+
+    # Combine Layers safely using native stream methods
+    final_chart = alt.layer(wicks, bodies, chandelier).properties(
+        width=1100, height=420
+    ).configure_axis(
+        grid=True, gridColor='#1f222b', labelColor='#848e9c', titleColor='#ffffff'
+    ).configure_view(
+        strokeOpacity=0, fill='#131722'
+    )
+
+    pd_st.altair_chart(final_chart, use_container_width=True)
+
+    pd_st.markdown("---")
+
+    # ==========================================
+    # 5. PORTFOLIO RISK MATRIX GRID
+    # ==========================================
+    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
     
-    closes = chart_df['Close'].values.flatten()
-    opens = chart_df['Open'].values.flatten()
-    highs = chart_df['High'].values.flatten()
-    lows = chart_df['Low'].values.flatten()
+    entry_price = float(latest_tick['Close'])
+    atr_value = float(latest_tick['ATR_14'])
+    stop_loss = entry_price - (atr_value * 2.0)
+    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
+    per_share_risk = entry_price - stop_loss
     
-    min_p, max_p = min(lows), max(highs)
-    p_range = (max_p - min_p) if (max_p - min_p) > 0 else 1
+    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
+    total_trade_commitment = allocated_position_size * entry_price
+    leverage_multiple = total_trade_commitment / capital_allocation
+
+    r1, r2, r3, r4 = pd_st.columns(4)
     
-    blocks_html = ""
-    for i in range(len(chart_df)):
-        op, cl, hi, lo = opens[i], closes[i], highs[i], lows[i]
-        is_bull = cl >= op
-        color = "#089981" if is_bull else "#f23645"
-        
-        body_top = max(op, cl)
-        body_bottom = min(op, cl)
-        
-        total_h = 300
-        y_max = ((hi - min_p) / p_range) * total_h
-        y_top = ((body_top - min_p) / p_range) * total_h
-        y_bot = ((body_bottom - min_p) / p_range) * total_h
-        y_min = ((lo - min_p) / p_range) * total_h
-        
-        wick_h = max(1, y_max - y_min)
-        body_h = max(2, y_top - y_bot)
-        
-        # Pure string block builder to guarantee absolute zero syntax errors
-        node = '<div style="display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; height: 300px;">'
-        node += '<div style="position: absolute; bottom: ' + str(y_min) + 'px; width: 2px; height: ' + str(wick_h) + 'px; background-color: ' + color + '; opacity: 0.7;"></div>'
-        node += '<div style="position: absolute; bottom: ' + str(y_bot) + 'px; width: 14px; height: ' + str(body_h) + 'px; background-color: ' + color + '; border-radius: 1px;"></div>'
-        node += '</div>'
-        blocks_html += node
-    
+    with r1:
+        pd_st.info("**Absolute Risk Buffer**")
