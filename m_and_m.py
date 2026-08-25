@@ -139,7 +139,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.1 Stable")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.2 Live")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -182,22 +182,22 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. STREMLIT NATIVE HIGH-VISIBILITY MATRIX CHART (ZERO EXTERNAL DEPENDENCY)
+    # 4. FIXED HIGH-VISIBILITY MULTI-MATRIX GRAPH Node
     # ==========================================
     pd_st.subheader("📈 Institutional Close Price Matrix & Chandelier Trailing Channel")
     
     chart_df = signal_ledger.tail(60).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Building Native Safe Array Layout
+    # Advanced Safe Multi-Line Area Array Node
     native_chart_data = pd.DataFrame({
         'Timeline': chart_df[time_col].values.flatten(),
-        'LTP Close': chart_df['Close'].values.flatten(),
-        'Chandelier Trailing SL': chart_df['Chandelier_Long'].values.flatten()
+        'LTP Close Price (INR)': chart_df['Close'].values.flatten(),
+        'Chandelier Trailing Break Line': chart_df['Chandelier_Long'].values.flatten()
     }).set_index('Timeline')
     
-    # Native rendering to strictly avoid ModuleNotFound Errors
-    pd_st.line_chart(native_chart_data, height=400, use_container_width=True)
+    # High-Contrast Multi-Line Layout - Native Optimization
+    pd_st.line_chart(native_chart_data, height=420, use_container_width=True)
 
     pd_st.markdown("---")
 
@@ -240,4 +240,3 @@ else:
 
     # Comprehensive Combined Signal Ledger View
     pd_st.markdown("---")
-    pd_st.markdown("### 🗒️ Recent Quant Signals Ledger (Last 5 Logs)")
