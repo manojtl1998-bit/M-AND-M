@@ -26,7 +26,7 @@ pd_st.markdown("""
         .stButton>button:hover { background-color: #00b386; color: #ffffff; }
         div.block-container { padding-top: 2rem; padding-bottom: 2rem; }
     </style>
-""", unsafe_style_html=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. DATA ENGINE & CORE QUANT OPERATIONS
@@ -190,7 +190,7 @@ else:
 
     # Chandelier Trailing Band Overlap
     chandelier_layer = alt.Chart(signal_ledger.tail(100)).mark_line(
-        color='#ffb703', strokeDash=[4, 4], strokeWidth=2
+        color='#ffb703', strokeWidth=2
     ).encode(
         x=f'{time_col}:T',
         y='Chandelier_Long:Q'
