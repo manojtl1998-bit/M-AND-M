@@ -13,7 +13,7 @@ pd_st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Premium Matte Dark Charcoal Palette
+# Premium Matte Dark Charcoal Palette Configuration
 pd_st.markdown("""
     <style>
         html, body, [data-testid="stAppViewContainer"] { 
@@ -38,26 +38,24 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=60)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with brute-force column flattening"""
+    """Fetches real-time institutional data feeds from yfinance with secure flattening"""
     try:
-        # Use group_by='column' to ensure stable format
         raw_df = yf.download(tickers=symbol, period=period, interval=interval, group_by='column')
         if raw_df.empty:
             return pd.DataFrame()
             
-        # BRUTE FORCE MULTI-INDEX REMOVAL
-        # If columns have Ticker level (e.g., Close, RELIANCE.NS), drop the Ticker level completely
+        # BRUTE FORCE MULTI-INDEX FLATTENING
         if isinstance(raw_df.columns, pd.MultiIndex):
             if len(raw_df.columns.levels) > 1:
                 raw_df.columns = raw_df.columns.droplevel(1)
             else:
                 raw_df.columns = raw_df.columns.get_level_values(0)
                 
-        # Force convert all column headers into crisp clean 1D strings
+        # Convert columns explicitly to 1D clean string headers
         raw_df.columns = [str(col).strip() for col in raw_df.columns]
         raw_df = raw_df.reset_index()
         
-        # Absolute structural clean mapper
+        # Mapping to prevent key errors
         rename_dict = {
             'Date': 'Date', 'Datetime': 'Datetime', 'Open': 'Open', 
             'High': 'High', 'Low': 'Low', 'Close': 'Close', 'Volume': 'Volume'
@@ -73,7 +71,7 @@ def calculate_quant_matrix(df: pd.DataFrame):
     if len(df) < 30:
         return df
 
-    # Extract guaranteed clean 1D numpy vectors to bypass pandas indexing bugs
+    # Safe extraction to 1D Numpy Arrays to secure mathematical flow
     close_arr = df['Close'].to_numpy().flatten()
     high_arr = df['High'].to_numpy().flatten()
     low_arr = df['Low'].to_numpy().flatten()
@@ -82,31 +80,31 @@ def calculate_quant_matrix(df: pd.DataFrame):
     high_ser = pd.Series(high_arr)
     low_ser = pd.Series(low_arr)
 
-    # RSI 14 Pass
+    # RSI 14 Logic
     close_delta = close_ser.diff()
     gain = (close_delta.clip(lower=0)).rolling(window=14).mean()
     loss = (-close_delta.clip(upper=0)).rolling(window=14).mean()
     rs = gain / (loss + 1e-10)
     df['RSI_14'] = (100 - (100 / (1 + rs))).to_numpy()
 
-    # MACD Pass (12, 26, 9)
+    # MACD Setup (12, 26, 9)
     df['EMA_12'] = close_ser.ewm(span=12, adjust=False).mean().to_numpy()
     df['EMA_26'] = close_ser.ewm(span=26, adjust=False).mean().to_numpy()
     df['MACD_Line'] = df['EMA_12'] - df['EMA_26']
     df['MACD_Signal'] = df['MACD_Line'].ewm(span=9, adjust=False).mean().to_numpy()
 
-    # ATR Matrix
+    # ATR Pass
     h_l = high_ser - low_ser
     h_pc = (high_ser - close_ser.shift(1)).abs()
     l_pc = (low_ser - close_ser.shift(1)).abs()
     tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
     df['ATR_14'] = tr.rolling(window=14).mean().to_numpy()
 
-    # Chandelier Momentum Channel
+    # Chandelier Trailing Guard Channel
     df['Highest_High_22'] = high_ser.rolling(window=22).max().to_numpy()
     df['Chandelier_Long'] = df['Highest_High_22'] - (df['ATR_14'] * 3.0)
 
-    # SuperTrend Pass
+    # SuperTrend Vector Calculation Matrix
     st_atr = df['ATR_14'].to_numpy() * 3.0
     hl2 = (high_arr + low_arr) / 2
     ub_arr = hl2 + st_atr
@@ -150,6 +148,7 @@ def generate_execution_signals(df: pd.DataFrame):
     macd_sig = df['MACD_Signal'].to_numpy()
     atr_vals = df['ATR_14'].to_numpy()
     
+    # Advanced Confluence Filtering Mode
     bullish_confluence = (trend_dir == 1) & (close_vals > chand_long) & (rsi_vals < 65) & (macd_line > macd_sig)
     bearish_confluence = (trend_dir == -1) & (close_vals < chand_long) & (rsi_vals > 35) & (macd_line < macd_sig)
     
@@ -167,6 +166,7 @@ pd_st.title("⚡ M&M Institutional Multi-Algo Trading Terminal")
 pd_st.caption("Pure Quant Alpha Signal Matrix Engine | High Precision Call Desk (No Charts Mode)")
 pd_st.markdown("---")
 
+# Comprehensive NSE Ticker Set Node
 nse_universe = [
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "BHARTIARTL.NS", 
     "SBIN.NS", "LTIM.NS", "HINDUNILVR.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS",
@@ -185,7 +185,7 @@ with pd_st.sidebar:
     capital_allocation = pd_st.number_input("Vault Portfolio Size (INR)", min_value=100000, value=2500000, step=50000)
     max_risk_per_trade = pd_st.slider("Max Execution Risk Per Trade (%)", 0.25, 3.0, 1.0, 0.25)
 
-# Execution Pipeline
+# Execution Pipeline Process Nodes
 raw_stock_data = fetch_ticker_data(symbol=target_stock, period="60d", interval=time_window)
 
 if raw_stock_data.empty:
@@ -199,7 +199,7 @@ else:
     time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
 
     # ==========================================
-    # 4. LIVE ALGO EXECUTION DESK (TOP CLASS ALGO CALLS)
+    # 4. LIVE ALGO EXECUTION DESK
     # ==========================================
     pd_st.subheader("🚨 Institutional Live Signal Desk")
     
@@ -223,7 +223,8 @@ else:
         t2 = entry_price * 1.02
         display_color = "orange"
 
-    # Built pure safe HTML using standard concatenation without f-string quote collision
+    # Fully Secured Safe String Concatenation Pattern
     html_string = '<div style="background-color: #171b26; padding: 25px; border-radius: 10px; border-left: 8px solid ' + display_color + '; margin-bottom: 20px;">'
     html_string += '<h2 style="margin: 0; color: #ffffff;">SYSTEM CALL: <span style="color: ' + display_color + ';">' + sig_status.replace('_', ' ') + '</span></h2>'
     html_string += '<p style="color: #848e9c; margin-top: 5px; font-size: 13px;">Asset ID: ' + str(target_stock) + ' | Generation Timestamp: ' + str(latest_tick[time_col]) + ' (Live Sync)</p>'
+    html_string += '<hr style="border: 0; border-top: 1px solid #2a2e39; margin: 15px 0;">'
