@@ -1,9 +1,33 @@
 import numpy as np
 
 # ಡೇಟಾವನ್ನು ಕ್ಲೀನ್ ಮಾಡುವ ಕೋಡ್
-if matrix_df is not None and not matrix_df.empty:
+
     # ಲೋಡಿಂಗ್ ಸಮಸ್ಯೆಯನ್ನು ತಡೆಯಲು NaN ಮತ್ತು Infinite ವ್ಯಾಲ್ಯೂಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ
     matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
+import streamlit as st
+import pandas as pd
+import numpy as np
+import yfinance as yf
+# ನಿಮ್ಮ ಉಳಿದ ಲೈಬ್ರರಿಗಳನ್ನು ಇಲ್ಲಿ ಇಂಪೋರ್ಟ್ ಮಾಡಿ...
+
+# 1. ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುವ ಕೋಡ್ (ಇದು ಫೈಲ್‌ನ ಆರಂಭದಲ್ಲೇ ಇರಲಿ)
+if "init_deployment_check" not in st.session_state:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state["init_deployment_check"] = True
+
+# --- ನಿಮ್ಮ ಕ್ವಾಂಟ್ ಇಂಜಿನ್ ಮತ್ತು ಡೇಟಾ ಲೋಡಿಂಗ್ ಕೋಡ್ ಇಲ್ಲಿ ಬರಲಿ ---
+# ಉದಾಹರಣೆಗೆ: matrix_df = load_nse_stock_data() 
+
+# 2. ಡೇಟಾ ಲೋಡ್ ಆದ ನಂತರ ಮಾತ್ರ ಈ ಕೆಳಗಿನ ಕೋಡ್ ಅನ್ನು ರನ್ ಮಾಡಿ (ಇದು ಲೈನ್ 4 ರಲ್ಲಿ ಇರಬಾರದು)
+try:
+    if 'matrix_df' in locals() or 'matrix_df' in globals():
+        if matrix_df is not None and not matrix_df.empty:
+            # ಲೋಡಿಂಗ್ ಸಮಸ್ಯೆಯನ್ನು ತಡೆಯಲು NaN ಮತ್ತು Infinite ವ್ಯಾಲ್ಯೂಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ
+            matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
+except NameError:
+    st.warning("Technical Matrix ಡೇಟಾ ಇನ್ನು ಸಿದ್ಧವಾಗಿಲ್ಲ...")
+
 import streamlit as st
 
 # ಹೊಸ ಡೆಪ್ಲಾಯ್ ಆದಾಗ ಹಳೆಯ ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುತ್ತದೆ
