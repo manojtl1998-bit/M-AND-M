@@ -148,7 +148,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.5")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.6")
 pd_st.markdown("---")
 
 # 70+ Internal NSE Stocks Database Node
@@ -221,14 +221,11 @@ else:
     )
 
     # Chandelier Trailing Band Overlap (Electric Yellow Line)
-    chandelier_layer = alt.Chart(chart_df).mark_line(
-        color='#ffea00', strokeWidth=2.5
-    ).encode(
+    chandelier_layer = alt.Chart(chart_df).mark_line(color='#ffea00', strokeWidth=2.5).encode(
         x=f'{time_col}:T',
         y='Chandelier_Long:Q'
     )
 
-    # SECURELY CLOSED BRACKETS STRUCTURE
-    integrated_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer).properties(
-        width=1100, height=480
-    ).configure_axis(
+    # ULTRA-SECURE MULTI-LINE SYNTAX MATRICES TO AVOID REDUNDANT CODE BROKEN BRACKETS
+    raw_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer)
+    sized_terminal_chart = raw_terminal_chart.properties(width=1100, height=480)
