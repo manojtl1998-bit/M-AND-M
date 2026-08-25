@@ -33,57 +33,67 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=600)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance"""
+    """Fetches real-time institutional data feeds from yfinance with strict flattening"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
             return pd.DataFrame()
-        # Clean multi-index columns if any
+            
+        # Clean multi-index columns aggressively if yfinance returns them
         if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = raw_df.columns.get_level_values(0)
-        return raw_df.reset_index()
+            raw_df.columns = [col[0] for col in raw_df.columns]
+            
+        raw_df = raw_df.reset_index()
+        return raw_df
     except Exception:
         return pd.DataFrame()
 
 def calculate_quant_matrix(df: pd.DataFrame):
-    """Executes Vectorized Quant Passes: RSI, MACD, ATR, SuperTrend, and Chandelier Exit"""
+    """Executes Vectorized Quant Passes with absolute 1D array flattening"""
     df = df.copy()
     if len(df) < 30:
         return df
 
+    # Extract clean 1D flattening series to prevent multi-dimensional matrix bugs
+    close_ser = pd.Series(df['Close'].values.flatten(), name='Close')
+    high_ser = pd.Series(df['High'].values.flatten(), name='High')
+    low_ser = pd.Series(df['Low'].values.flatten(), name='Low')
+
     # Core Vector Calculations
-    close_delta = df['Close'].diff()
+    close_delta = close_ser.diff()
     gain = (close_delta.clip(lower=0)).rolling(window=14).mean()
     loss = (-close_delta.clip(upper=0)).rolling(window=14).mean()
     rs = gain / (loss + 1e-10)
-    df['RSI_14'] = 100 - (100 / (1 + rs))
+    df['RSI_14'] = (100 - (100 / (1 + rs))).values
 
     # MACD Setup
-    df['EMA_12'] = df['Close'].ewm(span=12, adjust=False).mean()
-    df['EMA_26'] = df['Close'].ewm(span=26, adjust=False).mean()
+    df['EMA_12'] = close_ser.ewm(span=12, adjust=False).mean().values
+    df['EMA_26'] = close_ser.ewm(span=26, adjust=False).mean().values
     df['MACD_Line'] = df['EMA_12'] - df['EMA_26']
-    df['MACD_Signal'] = df['MACD_Line'].ewm(span=9, adjust=False).mean()
+    df['MACD_Signal'] = df['MACD_Line'].ewm(span=9, adjust=False).mean().values
 
     # ATR Matrix
-    df['H-L'] = df['High'] - df['Low']
-    df['H-PC'] = (df['High'] - df['Close'].shift(1)).abs()
-    df['L-PC'] = (df['Low'] - df['Close'].shift(1)).abs()
-    df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
-    df['ATR_14'] = df['TR'].rolling(window=14).mean()
+    h_l = high_ser - low_ser
+    h_pc = (high_ser - close_ser.shift(1)).abs()
+    l_pc = (low_ser - close_ser.shift(1)).abs()
+    tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
+    df['ATR_14'] = tr.rolling(window=14).mean().values
 
-    # [NEW QUANT INDICATOR] Institutional Chandelier Momentum Channel
-    df['Highest_High_22'] = df['High'].rolling(window=22).max()
+    # Chandelier Momentum Channel
+    df['Highest_High_22'] = high_ser.rolling(window=22).max().values
     df['Chandelier_Long'] = df['Highest_High_22'] - (df['ATR_14'] * 3.0)
 
     # SuperTrend Loop Integration
-    st_atr = df['ATR_14'] * 3.0
-    hl2 = (df['High'] + df['Low']) / 2
-    df['Basic_UB'] = hl2 + st_atr
-    df['Basic_LB'] = hl2 - st_atr
+    st_atr = df['ATR_14'].values * 3.0
+    hl2 = ((high_ser + low_ser) / 2).values
+    basic_ub = hl2 + st_atr
+    basic_lb = hl2 - st_atr
     
-    # Fast vectorized allocation for bounds
-    ub_arr, lb_arr = df['Basic_UB'].values, df['Basic_LB'].values
-    close_arr = df['Close'].values
+    # Strictly flatten arrays for looping to prevent element-wise truth value failures
+    ub_arr = basic_ub.flatten()
+    lb_arr = basic_lb.flatten()
+    close_arr = close_ser.values.flatten()
+    
     st_arr = np.zeros(len(df))
     dir_arr = np.ones(len(df)) # 1 for bull, -1 for bear
 
@@ -94,8 +104,10 @@ def calculate_quant_matrix(df: pd.DataFrame):
             dir_arr[i] = -1
         else:
             dir_arr[i] = dir_arr[i-1]
-            if dir_arr[i] == 1 and lb_arr[i] < lb_arr[i-1]: lb_arr[i] = lb_arr[i-1]
-            if dir_arr[i] == -1 and ub_arr[i] > ub_arr[i-1]: ub_arr[i] = ub_arr[i-1]
+            if dir_arr[i] == 1 and lb_arr[i] < lb_arr[i-1]: 
+                lb_arr[i] = lb_arr[i-1]
+            if dir_arr[i] == -1 and ub_arr[i] > ub_arr[i-1]: 
+                ub_arr[i] = ub_arr[i-1]
         st_arr[i] = lb_arr[i] if dir_arr[i] == 1 else ub_arr[i]
 
     df['SuperTrend'] = st_arr
@@ -103,16 +115,21 @@ def calculate_quant_matrix(df: pd.DataFrame):
     return df
 
 def generate_execution_signals(df: pd.DataFrame):
-    """[NEW TRADING STRATEGY] Confluence Framework (SuperTrend + Chandelier Reversal + RSI Filter)"""
+    """Confluence Framework (SuperTrend + Chandelier Reversal + RSI Filter)"""
     df = df.copy()
     df['Signal'] = "HOLD"
     
     if len(df) < 2:
         return df
 
-    # Vectorized conditional masks
-    bullish_confluence = (df['Trend_Direction'] == 1) & (df['Close'] > df['Chandelier_Long']) & (df['RSI_14'] < 68)
-    bearish_confluence = (df['Trend_Direction'] == -1) & (df['Close'] < df['Chandelier_Long']) & (df['RSI_14'] > 32)
+    # Vectorized conditional masks with explicit 1D arrays
+    trend_dir = df['Trend_Direction'].values
+    close_vals = df['Close'].values
+    chand_long = df['Chandelier_Long'].values
+    rsi_vals = df['RSI_14'].values
+    
+    bullish_confluence = (trend_dir == 1) & (close_vals > chand_long) & (rsi_vals < 68)
+    bearish_confluence = (trend_dir == -1) & (close_vals < chand_long) & (rsi_vals > 32)
     
     df.loc[bullish_confluence, 'Signal'] = "INSTITUTIONAL_BUY"
     df.loc[bearish_confluence, 'Signal'] = "INSTITUTIONAL_SHORT"
@@ -157,10 +174,10 @@ else:
 
     # Market Indicators Row
     m1, m2, m3, m4 = pd_st.columns(4)
-    price_delta = ((latest_tick['Close'] - prev_tick['Close']) / prev_tick['Close']) * 100
-    m1.metric("LTP (Last Traded Price)", f"₹{latest_tick['Close']:.2f}", f"{price_delta:+.2f}%")
-    m2.metric("RSI (14 Vectors)", f"{latest_tick['RSI_14']:.2f}", "Neutral" if 30 <= latest_tick['RSI_14'] <= 70 else "Extreme")
-    m3.metric("ATR Volatility Span", f"₹{latest_tick['ATR_14']:.2f}")
+    price_delta = ((float(latest_tick['Close']) - float(prev_tick['Close'])) / float(prev_tick['Close'])) * 100
+    m1.metric("LTP (Last Traded Price)", f"₹{float(latest_tick['Close']):.2f}", f"{price_delta:+.2f}%")
+    m2.metric("RSI (14 Vectors)", f"{float(latest_tick['RSI_14']):.2f}", "Neutral" if 30 <= float(latest_tick['RSI_14']) <= 70 else "Extreme")
+    m3.metric("ATR Volatility Span", f"₹{float(latest_tick['ATR_14']):.2f}")
     m4.metric("Active Algo Signal", str(latest_tick['Signal']))
 
     pd_st.markdown("---")
@@ -171,7 +188,13 @@ else:
     pd_st.subheader("📈 Institutional Candlestick Matrix & Chandelier Band")
     
     time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
-    base_chart = alt.Chart(signal_ledger.tail(100)).encode(
+    
+    # Flatten chart dataframe to ensure structural clean arrays
+    chart_df = signal_ledger.tail(100).copy()
+    for col in ['Open', 'High', 'Low', 'Close', 'Chandelier_Long']:
+        chart_df[col] = chart_df[col].values.flatten()
+
+    base_chart = alt.Chart(chart_df).encode(
         x=alt.X(f'{time_col}:T', title="Timeline Matrix"),
         color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#eb5b3c"))
     )
@@ -189,7 +212,7 @@ else:
     )
 
     # Chandelier Trailing Band Overlap
-    chandelier_layer = alt.Chart(signal_ledger.tail(100)).mark_line(
+    chandelier_layer = alt.Chart(chart_df).mark_line(
         color='#ffb703', strokeWidth=2
     ).encode(
         x=f'{time_col}:T',
@@ -213,25 +236,7 @@ else:
     # ==========================================
     pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
     
-    entry_price = latest_tick['Close']
-    atr_value = latest_tick['ATR_14']
+    entry_price = float(latest_tick['Close'])
+    atr_value = float(latest_tick['ATR_14'])
     stop_loss = entry_price - (atr_value * 2.0)
     risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
-    per_share_risk = entry_price - stop_loss
-    
-    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
-    total_trade_commitment = allocated_position_size * entry_price
-    leverage_multiple = total_trade_commitment / capital_allocation
-
-    # UI Grid Display
-    r1, r2, r3, r4 = pd_st.columns(4)
-    with r1:
-        pd_st.info("**Absolute Risk Buffer**")
-        pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
-        pd_st.caption(f"Strict {max_risk_per_trade}% configuration threshold limit.")
-    with r2:
-        pd_st.warning("**Dynamic Stop-Loss Line**")
-        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
-        pd_st.caption("Calculated via 2x ATR Structural Trailing Model.")
-    with r3:
-        pd_st.success("**Calculated Optimal Size**")
