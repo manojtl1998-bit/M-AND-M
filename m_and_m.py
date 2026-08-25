@@ -112,7 +112,6 @@ if selected_display:
     st.session_state.stored_ticker = nse_stocks[selected_display]
     st.session_state.stored_title = selected_display.split(" (")
 
-# ಸುರಕ್ಷಿತ ಲೋಡಿಂಗ್ ಇಂಜಿನ್ (ORDER FIXED HERE)
 @st.cache_data(ttl=60)
 def get_market_data(ticker):
     stock = yf.Ticker(ticker)
@@ -121,7 +120,6 @@ def get_market_data(ticker):
 
 try:
     df = get_market_data(st.session_state.stored_ticker)
-    
     if df.empty:
         st.error("⚠️ Yahoo Finance ನಿಂದ ಡೇಟಾ ಸಿಗುತ್ತಿಲ್ಲ.")
     else:
@@ -169,12 +167,10 @@ try:
             if i == 0:
                 st_signals.append("BUY")
                 continue
-                
             if df['Close'].iloc[i-1] <= df['Final_Upper'].iloc[i-1]:
                 df.iloc[i, df.columns.get_loc('Final_Upper')] = min(df['Basic_Upper'].iloc[i], df['Final_Upper'].iloc[i-1])
             if df['Close'].iloc[i-1] >= df['Final_Lower'].iloc[i-1]:
                 df.iloc[i, df.columns.get_loc('Final_Lower')] = max(df['Basic_Lower'].iloc[i], df['Final_Lower'].iloc[i-1])
-            
             if df['Close'].iloc[i] <= df['Final_Upper'].iloc[i]:
                 current_signal = "SELL"
             else:
@@ -191,7 +187,7 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್
+        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (SPACING FIXED 100%)
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         st_signal = df['SuperTrend_Signal'].iloc[-1]
         bb_upper = df['BB_Upper'].iloc[-1]
@@ -211,3 +207,4 @@ try:
                 st.success("🔥 **UPPER BAND BREAKOUT!**")
             elif latest_close <= bb_lower:
                 st.error("⚠️ **LOWER BAND BREAKOUT!**")
+            else:
