@@ -2,7 +2,6 @@ import streamlit as pd_st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -14,7 +13,7 @@ pd_st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Premium Full-Width Layout & Zero-Padding Configuration
+# Premium Velvet Deep Black Background Style Node
 pd_st.markdown("""
     <style>
         html, body, [data-testid="stAppViewContainer"] { 
@@ -39,7 +38,6 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=600)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with safe flattening"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
@@ -61,7 +59,6 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
         return pd.DataFrame()
 
 def calculate_quant_matrix(df: pd.DataFrame):
-    """Executes Vectorized Quant Passes with absolute 1D array flattening"""
     df = df.copy()
     if len(df) < 30:
         return df
@@ -70,31 +67,26 @@ def calculate_quant_matrix(df: pd.DataFrame):
     high_ser = pd.Series(df['High'].values.flatten(), name='High')
     low_ser = pd.Series(df['Low'].values.flatten(), name='Low')
 
-    # Core Vector Calculations
     close_delta = close_ser.diff()
     gain = (close_delta.clip(lower=0)).rolling(window=14).mean()
     loss = (-close_delta.clip(upper=0)).rolling(window=14).mean()
     rs = gain / (loss + 1e-10)
     df['RSI_14'] = (100 - (100 / (1 + rs))).values
 
-    # MACD Setup
     df['EMA_12'] = close_ser.ewm(span=12, adjust=False).mean().values
     df['EMA_26'] = close_ser.ewm(span=26, adjust=False).mean().values
     df['MACD_Line'] = df['EMA_12'] - df['EMA_26']
     df['MACD_Signal'] = df['MACD_Line'].ewm(span=9, adjust=False).mean().values
 
-    # ATR Matrix
     h_l = high_ser - low_ser
     h_pc = (high_ser - close_ser.shift(1)).abs()
     l_pc = (low_ser - close_ser.shift(1)).abs()
     tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
     df['ATR_14'] = tr.rolling(window=14).mean().values
 
-    # Chandelier Momentum Channel
     df['Highest_High_22'] = high_ser.rolling(window=22).max().values
     df['Chandelier_Long'] = df['Highest_High_22'] - (df['ATR_14'] * 3.0)
 
-    # SuperTrend Loop Integration
     st_atr = df['ATR_14'].values * 3.0
     hl2 = ((high_ser + low_ser) / 2).values
     basic_ub = hl2 + st_atr
@@ -125,7 +117,6 @@ def calculate_quant_matrix(df: pd.DataFrame):
     return df
 
 def generate_execution_signals(df: pd.DataFrame):
-    """Confluence Framework (SuperTrend + Chandelier Reversal + RSI Filter)"""
     df = df.copy()
     df['Signal'] = "HOLD"
     
@@ -148,7 +139,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.0")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.1 Stable")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -191,57 +182,22 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. HIGH-PERFORMANCE PLOTLY CANDLESTICK MATRIX (VISIBLE)
+    # 4. STREMLIT NATIVE HIGH-VISIBILITY MATRIX CHART (ZERO EXTERNAL DEPENDENCY)
     # ==========================================
-    pd_st.subheader("📈 Institutional Candlestick Matrix & Chandelier Momentum Line")
+    pd_st.subheader("📈 Institutional Close Price Matrix & Chandelier Trailing Channel")
     
     chart_df = signal_ledger.tail(60).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    fig = go.Figure()
+    # Building Native Safe Array Layout
+    native_chart_data = pd.DataFrame({
+        'Timeline': chart_df[time_col].values.flatten(),
+        'LTP Close': chart_df['Close'].values.flatten(),
+        'Chandelier Trailing SL': chart_df['Chandelier_Long'].values.flatten()
+    }).set_index('Timeline')
     
-    # Add Candlesticks
-    fig.add_trace(go.Candlestick(
-        x=chart_df[time_col].values.flatten(),
-        open=chart_df['Open'].values.flatten(),
-        high=chart_df['High'].values.flatten(),
-        low=chart_df['Low'].values.flatten(),
-        close=chart_df['Close'].values.flatten(),
-        name='Price Feed',
-        increasing_line_color='#00e676',
-        decreasing_line_color='#ff1744',
-        increasing_fillcolor='#00e676',
-        decreasing_fillcolor='#ff1744'
-    ))
-    
-    # Add Chandelier Target Line Overlay
-    fig.add_trace(go.Scatter(
-        x=chart_df[time_col].values.flatten(),
-        y=chart_df['Chandelier_Long'].values.flatten(),
-        mode='lines',
-        name='Chandelier Line',
-        line=dict(color='#ffea00', width=2)
-    ))
-    
-    fig.update_layout(
-        plot_bgcolor='#0b0f19',
-        paper_bgcolor='#0b0f19',
-        margin=dict(l=10, r=10, t=10, b=10),
-        xaxis=dict(
-            gridcolor='#1e2638',
-            tickfont=dict(color='#8892b0'),
-            rangeslider=dict(visible=False)
-        ),
-        yaxis=dict(
-            gridcolor='#1e2638',
-            tickfont=dict(color='#8892b0'),
-            side='right'
-        ),
-        legend=dict(font=dict(color='#ffffff')),
-        height=450
-    )
-    
-    pd_st.plotly_chart(fig, use_container_width=True)
+    # Native rendering to strictly avoid ModuleNotFound Errors
+    pd_st.line_chart(native_chart_data, height=400, use_container_width=True)
 
     pd_st.markdown("---")
 
@@ -253,3 +209,35 @@ else:
     entry_price = float(latest_tick['Close'])
     atr_value = float(latest_tick['ATR_14'])
     stop_loss = entry_price - (atr_value * 2.0)
+    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
+    per_share_risk = entry_price - stop_loss
+    
+    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
+    total_trade_commitment = allocated_position_size * entry_price
+    leverage_multiple = total_trade_commitment / capital_allocation
+
+    r1, r2, r3, r4 = pd_st.columns(4)
+    
+    with r1:
+        pd_st.info("**Absolute Risk Buffer**")
+        pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
+        pd_st.caption(f"Strict {max_risk_per_trade}% threshold limit.")
+        
+    with r2:
+        pd_st.warning("**Dynamic Stop-Loss Line**")
+        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
+        pd_st.caption("Calculated via 2x ATR Trailing Model.")
+        
+    with r3:
+        pd_st.success("**Calculated Optimal Size**")
+        pd_st.markdown(f"### {allocated_position_size} Units")
+        pd_st.caption("Maximum shares to trade safety limit.")
+        
+    with r4:
+        pd_st.error("**Leverage & Exposure Grid**")
+        pd_st.markdown(f"### {leverage_multiple:.2f}x Factor")
+        pd_st.caption(f"Total Trade Value: ₹{total_trade_commitment:,.2f}")
+
+    # Comprehensive Combined Signal Ledger View
+    pd_st.markdown("---")
+    pd_st.markdown("### 🗒️ Recent Quant Signals Ledger (Last 5 Logs)")
