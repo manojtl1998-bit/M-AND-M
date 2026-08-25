@@ -2,7 +2,6 @@ import streamlit as pd_st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timedelta
 
 # ==========================================
 # 1. SYSTEM CONFIGURATION & FIXED DARK THEME
@@ -38,24 +37,22 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=60)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with secure flattening"""
+    """Fetches real-time institutional data feeds from yfinance with extreme single-level column extraction"""
     try:
-        raw_df = yf.download(tickers=symbol, period=period, interval=interval, group_by='column')
+        # Absolute secure download method without multi-index collision
+        raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
             return pd.DataFrame()
             
-        # BRUTE FORCE MULTI-INDEX FLATTENING
+        # BRUTE FORCE MULTI-INDEX REMOVAL
         if isinstance(raw_df.columns, pd.MultiIndex):
-            if len(raw_df.columns.levels) > 1:
-                raw_df.columns = raw_df.columns.droplevel(1)
-            else:
-                raw_df.columns = raw_df.columns.get_level_values(0)
+            raw_df.columns = raw_df.columns.get_level_values(0)
                 
-        # Convert columns explicitly to 1D clean string headers
+        # Force clean 1D strings
         raw_df.columns = [str(col).strip() for col in raw_df.columns]
         raw_df = raw_df.reset_index()
         
-        # Mapping to prevent key errors
+        # Absolute structural clean mapper
         rename_dict = {
             'Date': 'Date', 'Datetime': 'Datetime', 'Open': 'Open', 
             'High': 'High', 'Low': 'Low', 'Close': 'Close', 'Volume': 'Volume'
@@ -71,7 +68,7 @@ def calculate_quant_matrix(df: pd.DataFrame):
     if len(df) < 30:
         return df
 
-    # Safe extraction to 1D Numpy Arrays to secure mathematical flow
+    # Extract clean 1D numpy vectors to secure absolute mathematical flow
     close_arr = df['Close'].to_numpy().flatten()
     high_arr = df['High'].to_numpy().flatten()
     low_arr = df['Low'].to_numpy().flatten()
@@ -228,3 +225,4 @@ else:
     html_string += '<h2 style="margin: 0; color: #ffffff;">SYSTEM CALL: <span style="color: ' + display_color + ';">' + sig_status.replace('_', ' ') + '</span></h2>'
     html_string += '<p style="color: #848e9c; margin-top: 5px; font-size: 13px;">Asset ID: ' + str(target_stock) + ' | Generation Timestamp: ' + str(latest_tick[time_col]) + ' (Live Sync)</p>'
     html_string += '<hr style="border: 0; border-top: 1px solid #2a2e39; margin: 15px 0;">'
+    html_string += '<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">'
