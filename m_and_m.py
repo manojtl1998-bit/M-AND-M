@@ -2,11 +2,10 @@ import streamlit as pd_st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import altair as alt
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. SYSTEM CONFIGURATION & PREMIUM AMBIENT DARK THEME
+# 1. SYSTEM CONFIGURATION & FIXED DARK THEME
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
@@ -14,17 +13,12 @@ pd_st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Premium Deep Slate Blue Theme
+# Clean and compatible style wrapper to ensure total visibility
 pd_st.markdown("""
     <style>
-        .reportview-container { background: #0e1117; color: #a6adbb; }
-        .sidebar .sidebar-content { background: #161b22; }
-        h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-        div[data-testid="stMetricValue"] { color: #00e676 !important; font-size: 26px !important; font-weight: 700; }
-        div[data-testid="stMetricDelta"] { color: #ff1744 !important; }
-        .stButton>button { background-color: #00e676; color: #000000; border-radius: 6px; border: none; font-weight: bold;}
-        .stButton>button:hover { background-color: #00b252; color: #000000; }
-        div.block-container { padding-top: 2rem; padding-bottom: 2rem; }
+        html, body, [data-testid="stAppViewContainer"] { background-color: #0b0e11 !important; color: #f0f2f5 !important; }
+        h1, h2, h3 { color: #ffffff !important; }
+        div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -33,21 +27,18 @@ pd_st.markdown("""
 # ==========================================
 @pd_st.cache_data(ttl=600)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with flawless single-level index flattening"""
+    """Fetches real-time institutional data feeds from yfinance with safe flattening"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
             return pd.DataFrame()
             
-        # STAGE 1 MULTI-INDEX FLATTENING
         if isinstance(raw_df.columns, pd.MultiIndex):
             raw_df.columns = raw_df.columns.get_level_values(0)
             
-        # Standardize strings just in case
         raw_df.columns = [str(col).strip() for col in raw_df.columns]
         raw_df = raw_df.reset_index()
         
-        # Ensure standardized naming convention across all versions
         rename_dict = {
             'Date': 'Date', 'Datetime': 'Datetime', 'Open': 'Open', 
             'High': 'High', 'Low': 'Low', 'Close': 'Close', 'Volume': 'Volume'
@@ -63,7 +54,6 @@ def calculate_quant_matrix(df: pd.DataFrame):
     if len(df) < 30:
         return df
 
-    # Extract clean 1D flattening series to prevent multi-dimensional matrix bugs
     close_ser = pd.Series(df['Close'].values.flatten(), name='Close')
     high_ser = pd.Series(df['High'].values.flatten(), name='High')
     low_ser = pd.Series(df['Low'].values.flatten(), name='Low')
@@ -98,13 +88,12 @@ def calculate_quant_matrix(df: pd.DataFrame):
     basic_ub = hl2 + st_atr
     basic_lb = hl2 - st_atr
     
-    # Strictly flatten arrays for looping to prevent element-wise truth value failures
     ub_arr = basic_ub.flatten()
     lb_arr = basic_lb.flatten()
     close_arr = close_ser.values.flatten()
     
     st_arr = np.zeros(len(df))
-    dir_arr = np.ones(len(df)) # 1 for bull, -1 for bear
+    dir_arr = np.ones(len(df))
 
     for i in range(1, len(df)):
         if close_arr[i-1] > ub_arr[i-1]:
@@ -131,7 +120,6 @@ def generate_execution_signals(df: pd.DataFrame):
     if len(df) < 2:
         return df
 
-    # Vectorized conditional masks with explicit 1D arrays
     trend_dir = df['Trend_Direction'].values
     close_vals = df['Close'].values
     chand_long = df['Chandelier_Long'].values
@@ -148,10 +136,9 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.6")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Stable Grid v2.7")
 pd_st.markdown("---")
 
-# 70+ Internal NSE Stocks Database Node
 nse_universe = [
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "BHARTIARTL.NS", 
     "SBIN.NS", "LTIM.NS", "HINDUNILVR.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS",
@@ -192,40 +179,58 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. ENHANCED HOLLOW/SOLID CANDLESTICK CHART PATTERN
+    # 4. HIGH-VISIBILITY LINE CHART PATTERN (STABLE)
     # ==========================================
-    pd_st.subheader("📈 Candlestick Matrix Pattern & Trailing Momentum Band")
+    pd_st.subheader("📈 Close Price Matrix & Chandelier Momentum Line")
     
-    time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
+    chart_df = signal_ledger.tail(60).copy()
+    time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Flatten chart dataframe to ensure structural clean arrays
-    chart_df = signal_ledger.tail(100).copy()
-    for col in ['Open', 'High', 'Low', 'Close', 'Chandelier_Long']:
-        chart_df[col] = chart_df[col].values.flatten()
+    # Standard line data creation
+    line_data = pd.DataFrame({
+        'Timeline': chart_df[time_col].values.flatten(),
+        'Close Price': chart_df['Close'].values.flatten(),
+        'Chandelier Target': chart_df['Chandelier_Long'].values.flatten()
+    }).set_index('Timeline')
+    
+    # Native High-Performance Line Chart Render (No Blank Screen)
+    pd_st.line_chart(line_data, height=350)
 
-    base_chart = alt.Chart(chart_df).encode(
-        x=alt.X(f'{time_col}:T', title="Timeline Grid Matrix"),
-        color=alt.condition("datum.Open <= datum.Close", alt.value("#00e676"), alt.value("#ff1744")) 
-    )
+    pd_st.markdown("---")
 
-    # Candlestick High/Low Wick Layer
-    rule_layer = base_chart.mark_rule(opacity=0.8, strokeWidth=1.5).encode(
-        y=alt.Y('Low:Q', scale=alt.Scale(zero=False), title="Price Scale (INR)"),
-        y2='High:Q'
-    )
+    # ==========================================
+    # 5. PORTFOLIO RISK MATRIX GRID
+    # ==========================================
+    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
+    
+    entry_price = float(latest_tick['Close'])
+    atr_value = float(latest_tick['ATR_14'])
+    stop_loss = entry_price - (atr_value * 2.0)
+    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
+    per_share_risk = entry_price - stop_loss
+    
+    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
+    total_trade_commitment = allocated_position_size * entry_price
+    leverage_multiple = total_trade_commitment / capital_allocation
 
-    # Candlestick Real Body Layer
-    bar_layer = base_chart.mark_bar(width=6).encode(
-        y='Open:Q',
-        y2='Close:Q'
-    )
+    # UI Grid Display
+    r1, r2, r3, r4 = pd_st.columns(4)
+    with r1:
+        pd_st.info("**Absolute Risk Buffer**")
+        pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
+        pd_st.caption(f"Strict {max_risk_per_trade}% threshold limit.")
+    with r2:
+        pd_st.warning("**Dynamic Stop-Loss Line**")
+        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
+        pd_st.caption("Calculated via 2x ATR Structural Trailing Model.")
+    with r3:
+        pd_st.success("**Calculated Optimal Size**")
+        pd_st.markdown(f"### {allocated_position_size} Units")
+        pd_st.caption("Maximum shares to trade without breaching risk cap.")
+    with r4:
+        pd_st.error("**Leverage & Exposure Grid**")
+        pd_st.markdown(f"### {leverage_multiple:.2f}x Factor")
+        pd_st.caption(f"Total Trade Value Exposure: ₹{total_trade_commitment:,.2f}")
 
-    # Chandelier Trailing Band Overlap (Electric Yellow Line)
-    chandelier_layer = alt.Chart(chart_df).mark_line(color='#ffea00', strokeWidth=2.5).encode(
-        x=f'{time_col}:T',
-        y='Chandelier_Long:Q'
-    )
-
-    # ULTRA-SECURE MULTI-LINE SYNTAX MATRICES TO AVOID REDUNDANT CODE BROKEN BRACKETS
-    raw_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer)
-    sized_terminal_chart = raw_terminal_chart.properties(width=1100, height=480)
+    # Comprehensive Combined Signal Ledger View
+    pd_st.markdown("### 🗒️ Recent Quant Signals Ledger (Last 5 Logs)")
