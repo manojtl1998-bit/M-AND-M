@@ -179,7 +179,7 @@ try:
             
         df['SuperTrend_Signal'] = st_signals
 
-        # UI ಮೆಟ್ರಿಕ್ಸ್
+        # UI ಮೆಟ್ರಿಕ್ಸ್ ಗ್ರಿಡ್
         st.subheader(f"⚡ {st.session_state.stored_title} ಇಂದಿನ ಸ್ಥಿತಿ")
         m_col1, m_col2, m_col3, m_col4 = st.columns(4)
         m_col1.metric("ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
@@ -187,21 +187,16 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ದೋಷಮುಕ್ತ ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (DANGER FREE FLAT DESIGN)
+        # 🚨 ERROR-FREE FLAT MATRIX MATRIX LEDGER (No 'if' spacing bugs possible)
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
-        st_signal = df['SuperTrend_Signal'].iloc[-1]
-        bb_upper = df['BB_Upper'].iloc[-1]
-        bb_lower = df['BB_Lower'].iloc[-1]
-
-        sig_col1, sig_col2 = st.columns(2)
         
-        # 1. ಸೂಪರ್‌ಟ್ರೆಂಡ್ ಡಿಸ್ಪ್ಲೇ
-        if st_signal == "BUY":
-            sig_col1.success(f"🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್:**\n\n🟢 **STRONG BUY (ಬಲವಾದ ಖರೀದಿ)**")
-        if st_signal == "SELL":
-            sig_col1.error(f"🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್:**\n\n🔴 **STRONG SELL (ಬಲವಾದ ಮಾರಾಟ)**")
-
-        # 2. ಬೋಲಿಂಜರ್ ಬ್ಯಾಂಡ್ಸ್ ಡಿಸ್ಪ್ಲೇ
-        if latest_close >= bb_upper:
-            sig_col2.success(f"📊 **Bollinger Bands ಅಲರ್ಟ್:**\n\n🔥 **UPPER BAND BREAKOUT!**")
-        if latest_close <= bb_lower:
+        # ಡೇಟಾ ಮ್ಯಾಟ್ರಿಕ್ಸ್ ಟೇಬಲ್ ಸೃಷ್ಟಿ
+        st_signal_value = df['SuperTrend_Signal'].iloc[-1]
+        bb_upper_val = df['BB_Upper'].iloc[-1]
+        bb_lower_val = df['BB_Lower'].iloc[-1]
+        
+        # ಇಫ್-ಎಲ್ಸ್ ತೆಗೆದು ನೇರ ಟೇಬಲ್ ಪ್ರದರ್ಶನ
+        indicator_data = pd.DataFrame({
+            "ಅಲ್ಗಾರಿದಮ್ ಮತ್ತು ಸೂಚಕ (Indicator Name)": ["SuperTrend Signal Engine", "Bollinger Upper Band (Resistance)", "Bollinger Lower Band (Support)", "Current Price Action Status"],
+            "ಲೆಕ್ಕಾಚಾರದ ಮೌಲ್ಯ (Calculated Value)": [st_signal_value, f"₹{bb_upper_val:.2f}", f"₹{bb_lower_val:.2f}", f"₹{latest_close:.2f}"]
+        })
