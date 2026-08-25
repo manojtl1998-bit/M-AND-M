@@ -9,16 +9,30 @@ from datetime import datetime, timedelta
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
-    layout="wide",
+    layout="wide",  # Dynamic wide framework
     initial_sidebar_state="expanded"
 )
 
-# Clean and compatible style wrapper to ensure total visibility
+# Premium Full-Width Layout & Zero-Padding Configuration
 pd_st.markdown("""
     <style>
-        html, body, [data-testid="stAppViewContainer"] { background-color: #0b0e11 !important; color: #f0f2f5 !important; }
-        h1, h2, h3 { color: #ffffff !important; }
-        div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; }
+        /* Force app to use 100% of the screen width with zero side margins */
+        html, body, [data-testid="stAppViewContainer"] { 
+            background-color: #0b0e11 !important; 
+            color: #f0f2f5 !important; 
+        }
+        .block-container {
+            max-width: 100% !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+            padding-top: 1.5rem !important;
+            padding-bottom: 1.5rem !important;
+        }
+        h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
+        div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; font-size: 24px !important; }
+        
+        /* Premium Dataframe styling */
+        .stDataFrame div { background-color: #12161a !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -136,7 +150,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Stable Grid v2.7")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.8")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -179,7 +193,7 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. HIGH-VISIBILITY LINE CHART PATTERN (STABLE)
+    # 4. HIGH-VISIBILITY LINE CHART PATTERN
     # ==========================================
     pd_st.subheader("📈 Close Price Matrix & Chandelier Momentum Line")
     
@@ -193,8 +207,8 @@ else:
         'Chandelier Target': chart_df['Chandelier_Long'].values.flatten()
     }).set_index('Timeline')
     
-    # Native High-Performance Line Chart Render (No Blank Screen)
-    pd_st.line_chart(line_data, height=350)
+    # Native High-Performance Line Chart Render - Full Stretch Enabled
+    pd_st.line_chart(line_data, height=400, use_container_width=True)
 
     pd_st.markdown("---")
 
@@ -224,13 +238,3 @@ else:
         pd_st.markdown(f"### ₹{stop_loss:,.2f}")
         pd_st.caption("Calculated via 2x ATR Structural Trailing Model.")
     with r3:
-        pd_st.success("**Calculated Optimal Size**")
-        pd_st.markdown(f"### {allocated_position_size} Units")
-        pd_st.caption("Maximum shares to trade without breaching risk cap.")
-    with r4:
-        pd_st.error("**Leverage & Exposure Grid**")
-        pd_st.markdown(f"### {leverage_multiple:.2f}x Factor")
-        pd_st.caption(f"Total Trade Value Exposure: ₹{total_trade_commitment:,.2f}")
-
-    # Comprehensive Combined Signal Ledger View
-    pd_st.markdown("### 🗒️ Recent Quant Signals Ledger (Last 5 Logs)")
