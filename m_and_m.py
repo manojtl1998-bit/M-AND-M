@@ -128,7 +128,7 @@ pd_st.markdown("---")
 # 70+ Internal NSE Stocks Database Node
 nse_universe = [
     "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "BHARTIARTL.NS", 
-    "SBI-N.NS", "LTIM.NS", "HITC.NS", "HINDUNILVR.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS",
+    "SBIN.NS", "LTIM.NS", "HINDUNILVR.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS",
     "AXISBANK.NS", "KOTAKBANK.NS", "M&M.NS", "TATASTEEL.NS", "NTPC.NS", "POWERGRID.NS",
     "ADANIENT.NS", "COALINDIA.NS", "BPCL.NS", "ONGC.NS", "SUNPHARMA.NS", "DRREDDY.NS",
     "CIPLA.NS", "APOLLOHOSP.NS", "TATAMOTORS.NS", "MARUTI.NS", "EICHERMOT.NS", "HEROMOTOCO.NS",
@@ -139,7 +139,7 @@ nse_universe = [
 
 with pd_st.sidebar:
     pd_st.header("🔎 Quant Parameters")
-    target_stock = pd_st.selectbox("Select Asset Asset Architecture", nse_universe, index=0)
+    target_stock = pd_st.selectbox("Select Asset Architecture", nse_universe, index=0)
     time_window = pd_st.selectbox("Time Horizon Interval", ["15m", "30m", "1h", "1d"], index=0)
     capital_allocation = pd_st.number_input("Vault Portfolio Size (INR)", min_value=100000, value=2500000, step=50000)
     max_risk_per_trade = pd_st.slider("Max Execution Risk Per Trade (%)", 0.25, 3.0, 1.0, 0.25)
@@ -166,13 +166,14 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. WICK-PERFECT ALTAIR CANDLESTICK CHART (UI IMPROVED)
+    # 4. WICK-PERFECT ALTAIR CANDLESTICK CHART
     # ==========================================
     pd_st.subheader("📈 Institutional Candlestick Matrix & Chandelier Band")
     
+    time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
     base_chart = alt.Chart(signal_ledger.tail(100)).encode(
-        x=alt.X('Datetime:T' if 'Datetime' in signal_ledger.columns else 'Date:T', title="Timeline Matrix"),
-        color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#eb5b3c")) # Groww Bull/Bear Palette
+        x=alt.X(f'{time_col}:T', title="Timeline Matrix"),
+        color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#eb5b3c"))
     )
 
     # Wick Layer
@@ -191,7 +192,7 @@ else:
     chandelier_layer = alt.Chart(signal_ledger.tail(100)).mark_line(
         color='#ffb703', strokeDash=[4, 4], strokeWidth=2
     ).encode(
-        x='Datetime:T' if 'Datetime' in signal_ledger.columns else 'Date:T',
+        x=f'{time_col}:T',
         y='Chandelier_Long:Q'
     )
 
@@ -208,18 +209,16 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 5. [NEW FEATURE] PORTFOLIO RISK MATRIX GRID
+    # 5. PORTFOLIO RISK MATRIX GRID
     # ==========================================
     pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
     
-    # Real-Time Risk Processing Engine Calculations via Risk Matrix Rules
     entry_price = latest_tick['Close']
     atr_value = latest_tick['ATR_14']
     stop_loss = entry_price - (atr_value * 2.0)
     risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
     per_share_risk = entry_price - stop_loss
     
-    # Check for divide by zero safety
     allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
     total_trade_commitment = allocated_position_size * entry_price
     leverage_multiple = total_trade_commitment / capital_allocation
@@ -231,3 +230,8 @@ else:
         pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
         pd_st.caption(f"Strict {max_risk_per_trade}% configuration threshold limit.")
     with r2:
+        pd_st.warning("**Dynamic Stop-Loss Line**")
+        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
+        pd_st.caption("Calculated via 2x ATR Structural Trailing Model.")
+    with r3:
+        pd_st.success("**Calculated Optimal Size**")
