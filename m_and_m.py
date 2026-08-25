@@ -109,28 +109,26 @@ st.write("### 📊 ಇಂದಿನ ಮಾರ್ಕೆಟ್ ಮೂವ್ಮೆ�
 @st.cache_data(ttl=15)
 def get_index_data(ticker):
     idx = yf.Ticker(ticker)
-    data = idx.history(period="5d", interval="1m")
-    if data.empty or len(data) < 2:
-        data = idx.history(period="1mo", interval="1d")
+    data = idx.history(period="3mo", interval="1d")
     return data
 
 try:
     nifty_df = get_index_data("^NSEI")
     sensex_df = get_index_data("^BSESN")
     nifty_now = float(nifty_df['Close'].iloc[-1])
-    nifty_prev = float(nifty_df['Close'].iloc[-2]) if len(nifty_df) > 1 else nifty_now
+    nifty_prev = float(nifty_df['Close'].iloc[-2])
     nifty_diff = nifty_now - nifty_prev
-    nifty_pct = (nifty_diff / nifty_prev) * 100 if nifty_prev != 0 else 0
+    nifty_pct = (nifty_diff / nifty_prev) * 100
     sensex_now = float(sensex_df['Close'].iloc[-1])
-    sensex_prev = float(sensex_df['Close'].iloc[-2]) if len(sensex_df) > 1 else sensex_now
+    sensex_prev = float(sensex_df['Close'].iloc[-2])
     sensex_diff = sensex_now - sensex_prev
-    sensex_pct = (sensex_diff / sensex_prev) * 100 if sensex_prev != 0 else 0
+    sensex_pct = (sensex_diff / sensex_prev) * 100
 
     idx_col1, idx_col2 = st.columns(2)
     idx_col1.metric("🟢 NIFTY 50 (NSE)", f"{nifty_now:,.2f}", f"{nifty_diff:+.2f} ({nifty_pct:+.2f}%)")
     idx_col2.metric("🔵 SENSEX (BSE)", f"{sensex_now:,.2f}", f"{sensex_diff:+.2f} ({sensex_pct:+.2f}%)")
 except Exception:
-    pass
+    st.info("💡 ಮಾರುಕಟ್ಟೆ ಚಲನೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ...")
 
 st.markdown("---")
 
@@ -143,9 +141,7 @@ if selected_display:
 @st.cache_data(ttl=10)
 def get_market_data(ticker):
     stock = yf.Ticker(ticker)
-    data = stock.history(period="5d", interval="1m")
-    if data.empty or len(data) < 5:
-        data = stock.history(period="3mo", interval="1d")
+    data = stock.history(period="3mo", interval="1d")
     return data
 
 df = get_market_data(st.session_state.stored_ticker)
@@ -210,6 +206,13 @@ m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
 m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
 m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-# 🚨 SAFE ALL-SIGNALS DASHBOARD (BUG FREE LOGIC)
+# 🚨 2. ALL SIGNALS COMBINED DASHBOARD
 st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಮತ್ತು ಇಂಡಿಕೇಟರ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
+
+rsi_now = float(df['RSI'].iloc[-1])
+macd_now = float(df['MACD'].iloc[-1])
+signal_now = float(df['Signal'].iloc[-1])
+st_signal_value = str(df['SuperTrend_Signal'].iloc[-1])
+bb_upper_val = float(df['BB_Upper'].iloc[-1])
+bb_lower_val = float(df['BB_Lower'].iloc[-1])
 
