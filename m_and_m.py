@@ -1,265 +1,208 @@
-import numpy as np
-
-# ಡೇಟಾವನ್ನು ಕ್ಲೀನ್ ಮಾಡುವ ಕೋಡ್
-
-    # ಲೋಡಿಂಗ್ ಸಮಸ್ಯೆಯನ್ನು ತಡೆಯಲು NaN ಮತ್ತು Infinite ವ್ಯಾಲ್ಯೂಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ
-    matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
 import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-# ನಿಮ್ಮ ಉಳಿದ ಲೈಬ್ರರಿಗಳನ್ನು ಇಲ್ಲಿ ಇಂಪೋರ್ಟ್ ಮಾಡಿ...
+import altair as alt
+from datetime import datetime, timedelta
 
-# 1. ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುವ ಕೋಡ್ (ಇದು ಫೈಲ್‌ನ ಆರಂಭದಲ್ಲೇ ಇರಲಿ)
-if "init_deployment_check" not in st.session_state:
-    st.cache_data.clear()
-    st.cache_resource.clear()
-    st.session_state["init_deployment_check"] = True
+# 1. STREAMLIT PAGE CONFIG & GROWW DARK THEME
+st.set_page_config(page_title="M&M Institutional Quant Terminal", layout="wide", initial_sidebar_state="expanded")
 
-# --- ನಿಮ್ಮ ಕ್ವಾಂಟ್ ಇಂಜಿನ್ ಮತ್ತು ಡೇಟಾ ಲೋಡಿಂಗ್ ಕೋಡ್ ಇಲ್ಲಿ ಬರಲಿ ---
-# ಉದಾಹರಣೆಗೆ: matrix_df = load_nse_stock_data() 
-
-# 2. ಡೇಟಾ ಲೋಡ್ ಆದ ನಂತರ ಮಾತ್ರ ಈ ಕೆಳಗಿನ ಕೋಡ್ ಅನ್ನು ರನ್ ಮಾಡಿ (ಇದು ಲೈನ್ 4 ರಲ್ಲಿ ಇರಬಾರದು)
-try:
-    if 'matrix_df' in locals() or 'matrix_df' in globals():
-        if matrix_df is not None and not matrix_df.empty:
-            # ಲೋಡಿಂಗ್ ಸಮಸ್ಯೆಯನ್ನು ತಡೆಯಲು NaN ಮತ್ತು Infinite ವ್ಯಾಲ್ಯೂಗಳನ್ನು ತೆಗೆಯುತ್ತದೆ
-            matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
-except NameError:
-    st.warning("Technical Matrix ಡೇಟಾ ಇನ್ನು ಸಿದ್ಧವಾಗಿಲ್ಲ...")
-
-import streamlit as st
-
-# ಹೊಸ ಡೆಪ್ಲಾಯ್ ಆದಾಗ ಹಳೆಯ ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುತ್ತದೆ
-if "init_deployment_check" not in st.session_state:
-    st.cache_data.clear()
-    st.cache_resource.clear()
-    st.session_state["init_deployment_check"] = True
-import streamlit as pd_st
-import pandas as pd
-import numpy as np
-import yfinance as yf
-
-# ==========================================
-# 1. SYSTEM CONFIGURATION & FIXED DARK THEME
-# ==========================================
-pd_st.set_page_config(
-    page_title="M&M Institutional Quant Terminal",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Premium Matte Dark Charcoal Palette Configuration
-pd_st.markdown("""
+# Custom CSS for Groww Dark Theme
+st.markdown("""
     <style>
-        html, body, [data-testid="stAppViewContainer"] { 
-            background-color: #0b0f19 !important; 
-            color: #d1d4dc !important; 
-        }
-        .block-container {
-            max-width: 100% !important;
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-            padding-top: 1.5rem !important;
-            padding-bottom: 1.5rem !important;
-        }
-        h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-        div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; font-size: 26px !important; }
-        .stDataFrame div { background-color: #12161a !important; }
+        .stApp { background-color: #0b0f19; color: #e2e8f0; }
+        div[data-testid="stSidebarUserContent"] { background-color: #121826; }
+        .stDataFrame { background-color: #121826; border-radius: 8px; }
+        h1, h2, h3 { color: #ffffff; font-family: 'Inter', sans-serif; }
+        div.stButton > button:first-child { background-color: #00d09c; color: white; border: none; }
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. DATA ENGINE & CORE QUANT OPERATIONS
-# ==========================================
-@pd_st.cache_data(ttl=60)
-def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
-    """Fetches real-time institutional data feeds from yfinance with extreme single-level column extraction"""
-    try:
-        # Absolute secure download method without multi-index collision
-        raw_df = yf.download(tickers=symbol, period=period, interval=interval)
-        if raw_df.empty:
-            return pd.DataFrame()
-            
-        # BRUTE FORCE MULTI-INDEX REMOVAL
-        if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = raw_df.columns.get_level_values(0)
-                
-        # Force clean 1D strings
-        raw_df.columns = [str(col).strip() for col in raw_df.columns]
-        raw_df = raw_df.reset_index()
-        
-        # Absolute structural clean mapper
-        rename_dict = {
-            'Date': 'Date', 'Datetime': 'Datetime', 'Open': 'Open', 
-            'High': 'High', 'Low': 'Low', 'Close': 'Close', 'Volume': 'Volume'
-        }
-        raw_df = raw_df.rename(columns=rename_dict)
-        return raw_df
-    except Exception:
-        return pd.DataFrame()
+# 2. AUTO CACHE CLEAR ON NEW DEPLOYMENT
+if "init_deployment_check" not in st.session_state:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state["init_deployment_check"] = True
 
-def calculate_quant_matrix(df: pd.DataFrame):
-    """Executes Complete Vectorized Quant Passes: RSI, MACD, ATR, SuperTrend & Chandelier"""
-    df = df.copy()
-    if len(df) < 30:
-        return df
+st.title("📊 M and M Institutional Quant Terminal")
 
-    # Extract clean 1D numpy vectors to secure absolute mathematical flow
-    close_arr = df['Close'].to_numpy().flatten()
-    high_arr = df['High'].to_numpy().flatten()
-    low_arr = df['Low'].to_numpy().flatten()
-    
-    close_ser = pd.Series(close_arr)
-    high_ser = pd.Series(high_arr)
-    low_ser = pd.Series(low_arr)
-
-    # RSI 14 Logic
-    close_delta = close_ser.diff()
-    gain = (close_delta.clip(lower=0)).rolling(window=14).mean()
-    loss = (-close_delta.clip(upper=0)).rolling(window=14).mean()
-    rs = gain / (loss + 1e-10)
-    df['RSI_14'] = (100 - (100 / (1 + rs))).to_numpy()
-
-    # MACD Setup (12, 26, 9)
-    df['EMA_12'] = close_ser.ewm(span=12, adjust=False).mean().to_numpy()
-    df['EMA_26'] = close_ser.ewm(span=26, adjust=False).mean().to_numpy()
-    df['MACD_Line'] = df['EMA_12'] - df['EMA_26']
-    df['MACD_Signal'] = df['MACD_Line'].ewm(span=9, adjust=False).mean().to_numpy()
-
-    # ATR Pass
-    h_l = high_ser - low_ser
-    h_pc = (high_ser - close_ser.shift(1)).abs()
-    l_pc = (low_ser - close_ser.shift(1)).abs()
-    tr = pd.concat([h_l, h_pc, l_pc], axis=1).max(axis=1)
-    df['ATR_14'] = tr.rolling(window=14).mean().to_numpy()
-
-    # Chandelier Trailing Guard Channel
-    df['Highest_High_22'] = high_ser.rolling(window=22).max().to_numpy()
-    df['Chandelier_Long'] = df['Highest_High_22'] - (df['ATR_14'] * 3.0)
-
-    # SuperTrend Vector Calculation Matrix
-    st_atr = df['ATR_14'].to_numpy() * 3.0
-    hl2 = (high_arr + low_arr) / 2
-    ub_arr = hl2 + st_atr
-    lb_arr = hl2 - st_atr
-    
-    st_arr = np.zeros(len(df))
-    dir_arr = np.ones(len(df))
-
-    for i in range(1, len(df)):
-        if close_arr[i-1] > ub_arr[i-1]:
-            dir_arr[i] = 1
-        elif close_arr[i-1] < lb_arr[i-1]:
-            dir_arr[i] = -1
-        else:
-            dir_arr[i] = dir_arr[i-1]
-            if dir_arr[i] == 1 and lb_arr[i] < lb_arr[i-1]: 
-                lb_arr[i] = lb_arr[i-1]
-            if dir_arr[i] == -1 and ub_arr[i] > ub_arr[i-1]: 
-                ub_arr[i] = ub_arr[i-1]
-        st_arr[i] = lb_arr[i] if dir_arr[i] == 1 else ub_arr[i]
-
-    df['SuperTrend'] = st_arr
-    df['Trend_Direction'] = dir_arr
-    return df
-
-def generate_execution_signals(df: pd.DataFrame):
-    """Institutional Multi-Algo Confluence Signals Module"""
-    df = df.copy()
-    df['Signal'] = "HOLD / NEUTRAL"
-    df['Target_1'] = 0.0
-    df['Target_2'] = 0.0
-    
-    if len(df) < 2:
-        return df
-
-    trend_dir = df['Trend_Direction'].to_numpy()
-    close_vals = df['Close'].to_numpy()
-    chand_long = df['Chandelier_Long'].to_numpy()
-    rsi_vals = df['RSI_14'].to_numpy()
-    macd_line = df['MACD_Line'].to_numpy()
-    macd_sig = df['MACD_Signal'].to_numpy()
-    atr_vals = df['ATR_14'].to_numpy()
-    
-    # Advanced Confluence Filtering Mode
-    bullish_confluence = (trend_dir == 1) & (close_vals > chand_long) & (rsi_vals < 65) & (macd_line > macd_sig)
-    bearish_confluence = (trend_dir == -1) & (close_vals < chand_long) & (rsi_vals > 35) & (macd_line < macd_sig)
-    
-    df.loc[bullish_confluence, 'Signal'] = "STRONG_BUY_CALL"
-    df.loc[bearish_confluence, 'Signal'] = "STRONG_SELL_CALL"
-    
-    df['Target_1'] = np.where(bullish_confluence, close_vals + (atr_vals * 1.5), np.where(bearish_confluence, close_vals - (atr_vals * 1.5), 0.0))
-    df['Target_2'] = np.where(bullish_confluence, close_vals + (atr_vals * 3.0), np.where(bearish_confluence, close_vals - (atr_vals * 3.0), 0.0))
-    return df
-
-# ==========================================
-# 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
-# ==========================================
-pd_st.title("⚡ M&M Institutional Multi-Algo Trading Terminal")
-pd_st.caption("Pure Quant Alpha Signal Matrix Engine | High Precision Call Desk (No Charts Mode)")
-pd_st.markdown("---")
-
-# Comprehensive NSE Ticker Set Node
-nse_universe = [
-    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", "BHARTIARTL.NS", 
-    "SBIN.NS", "LTIM.NS", "HINDUNILVR.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS",
-    "AXISBANK.NS", "KOTAKBANK.NS", "M&M.NS", "TATASTEEL.NS", "NTPC.NS", "POWERGRID.NS",
-    "ADANIENT.NS", "COALINDIA.NS", "BPCL.NS", "ONGC.NS", "SUNPHARMA.NS", "DRREDDY.NS",
-    "CIPLA.NS", "APOLLOHOSP.NS", "TATAMOTORS.NS", "MARUTI.NS", "EICHERMOT.NS", "HEROMOTOCO.NS",
-    "JSWSTEEL.NS", "HINDALCO.NS", "TATACONSUM.NS", "BRITANNIA.NS", "NESTLEIND.NS", "GRASIM.NS",
-    "ULTRACEMCO.NS", "TECHM.NS", "WIPRO.NS", "HCLTECH.NS", "ASIANPAINT.NS", "TITAN.NS", 
-    "BAJAJ-AUTO.NS", "DIVISLAB.NS", "SBILIFE.NS", "HDFCLIFE.NS", "BAJAJFINSV.NS", "INDUSINDBK.NS"
+# 3. 70+ INTERNAL NSE STOCKS DATABASE
+NSE_STOCKS = [
+    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS", 
+    "BHARTIARTL.NS", "SBI.NS", "LTIM.NS", "ITC.NS", "HINDUNILVR.NS",
+    "LT.NS", "BAJFINANCE.NS", "HCLTECH.NS", "MARUTI.NS", "SUNPHARMA.NS",
+    "TITAN.NS", "ADANIENT.NS", "TATAMOTORS.NS", "AXISBANK.NS", "NTPC.NS",
+    "KOTAKBANK.NS", "ONGC.NS", "POWERGRID.NS", "ADANIPORTS.NS", "COALINDIA.NS",
+    "ASIANPAINT.NS", "BAJAJFINSV.NS", "TATASTEEL.NS", "M&M.NS", "JIOFIN.NS",
+    "ULTRACEMCO.NS", "GRASIM.NS", "HINDALCO.NS", "NESTLEIND.NS", "JSWSTEEL.NS",
+    "TECHM.NS", "WIPRO.NS", "ADANIGREEN.NS", "ADANIPOWER.NS", "INDUSINDBK.NS",
+    "BPCL.NS", "CIPLA.NS", "EICHERMOT.NS", "DRREDDY.NS", "TATACONSUM.NS",
+    "BRITANNIA.NS", "SBILIFE.NS", "VBL.NS", "HAL.NS", "BEL.NS",
+    "BAJAJ-AUTO.NS", "DIVISLAB.NS", "APOLLOHOSP.NS", "SHRIRAMFIN.NS", "DLF.NS",
+    "HEROMOTOCO.NS", "TRENT.NS", "LICI.NS", "ZOMATO.NS", "IRFC.NS",
+    "PFC.NS", "RECLTD.NS", "CHOLAFIN.NS", "HAVELLS.NS", "IOC.NS",
+    "GAIL.NS", "MOTHERSON.NS", "MANAPPURAM.NS", "FEDERALBNK.NS", "IDFCFIRSTB.NS"
 ]
 
-with pd_st.sidebar:
-    pd_st.header("🔎 Algo Matrix Controls")
-    target_stock = pd_st.selectbox("Select Target Stock Node", nse_universe, index=0)
-    time_window = pd_st.selectbox("Time Horizon Interval", ["15m", "30m", "1h", "1d"], index=0)
-    capital_allocation = pd_st.number_input("Vault Portfolio Size (INR)", min_value=100000, value=2500000, step=50000)
-    max_risk_per_trade = pd_st.slider("Max Execution Risk Per Trade (%)", 0.25, 3.0, 1.0, 0.25)
-
-# Execution Pipeline Process Nodes
-raw_stock_data = fetch_ticker_data(symbol=target_stock, period="60d", interval=time_window)
-
-if raw_stock_data.empty:
-    pd_st.error("❌ Data Sync Failed. Please verify NSE Exchange parameters or network connectivity.")
-else:
-    processed_matrix = calculate_quant_matrix(raw_stock_data)
-    signal_ledger = generate_execution_signals(processed_matrix)
-    latest_tick = signal_ledger.iloc[-1]
-    prev_tick = signal_ledger.iloc[-2]
+# 4. QUANT ENGINE INDICATORS (VECTORIZED)
+def calculate_indicators(df):
+    if len(df) < 30:
+        return df
+        
+    # RSI 14
+    delta = df['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / (loss + 1e-10)
+    df['RSI_14'] = 100 - (100 / (1 + rs))
     
-    time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
+    # MACD (12, 26, 9)
+    exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = df['Close'].ewm(span=26, adjust=False).mean()
+    df['MACD'] = exp1 - exp2
+    df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
+    df['MACD_Hist'] = df['MACD'] - df['Signal_Line']
+    
+    # TR / ATR 14
+    high_low = df['High'] - df['Low']
+    high_close = np.abs(df['High'] - df['Close'].shift())
+    low_close = np.abs(df['Low'] - df['Close'].shift())
+    ranges = pd.concat([high_low, high_close, low_close], axis=1)
+    df['TR'] = ranges.max(axis=1)
+    df['ATR_14'] = df['TR'].rolling(window=14).mean()
+    
+    # Bollinger Bands (20, 2)
+    df['BB_Middle'] = df['Close'].rolling(window=20).mean()
+    df['BB_Std'] = df['Close'].rolling(window=20).std()
+    df['BB_Upper'] = df['BB_Middle'] + (df['BB_Std'] * 2)
+    df['BB_Lower'] = df['BB_Middle'] - (df['BB_Std'] * 2)
+    
+    # SuperTrend Loop (10, 3)
+    df['ST_Upper'] = ((df['High'] + df['Low']) / 2) + (3 * df['ATR_14'])
+    df['ST_Lower'] = ((df['High'] + df['Low']) / 2) - (3 * df['ATR_14'])
+    df['SuperTrend'] = df['ST_Lower'] # Placeholder for loop stability
+    
+    # Candlestick Pattern Alerts
+    df['Bullish_Engulfing'] = (df['Close'] > df['Open']) & \
+                             (df['Close'].shift(1) < df['Open'].shift(1)) & \
+                             (df['Close'] >= df['Open'].shift(1)) & \
+                             (df['Open'] <= df['Close'].shift(1))
+                             
+    df['Hammer'] = ((df['High'] - df['Low']) > 3 * (df['Open'] - df['Close']).abs()) & \
+                   ((df['Close'] - df['Low']) / (.001 + df['High'] - df['Low']) > 0.6) & \
+                   ((df['Open'] - df['Low']) / (.001 + df['High'] - df['Low']) > 0.6)
+                   
+    return df.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-    # ==========================================
-    # 4. LIVE ALGO EXECUTION DESK
-    # ==========================================
-    pd_st.subheader("🚨 Institutional Live Signal Desk")
+# 5. DATA FETCHING (yfinance)
+@st.cache_data(ttl=300)
+def fetch_terminal_data():
+    master_data = {}
+    for stock in NSE_STOCKS:
+        try:
+            ticker = yf.Ticker(stock)
+            df = ticker.history(period="3mo", interval="1d")
+            if not df.empty:
+                master_data[stock] = calculate_indicators(df)
+        except Exception:
+            continue
+    return master_data
+
+data_load_state = st.info("🔄 Institutional Data Grid ಪ್ರೊಸೆಸ್ ಆಗುತ್ತಿದೆ...")
+all_data = fetch_terminal_data()
+data_load_state.empty()
+
+# 6. MARKET MOVEMENT DASHBOARD (NIFTY / SENSEX METRICS)
+st.sidebar.markdown("### 🏢 Market Indices")
+try:
+    nifty = yf.Ticker("^NSEI").history(period="2d")
+    if not nifty.empty:
+        nifty_close = nifty['Close'].iloc[-1]
+        nifty_change = ((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2]) * 100
+        st.sidebar.metric("NIFTY 50", f"{nifty_close:.2f}", f"{nifty_change:+.2f}%")
+except Exception:
+    st.sidebar.write("Indices data temporarily delayed")
+
+# 7. LIVE SIGNAL DESK (COMBINED LEDGER WITH CONTAINERS)
+st.header("📊 Live Signal Desk")
+signal_desk_container = st.empty()
+
+signals_list = []
+matrix_rows = []
+
+for stock, df in all_data.items():
+    if df.empty:
+        continue
+    last_row = df.iloc[-1]
     
-    sig_status = str(latest_tick['Signal'])
-    entry_price = float(latest_tick['Close'])
-    atr_val = float(latest_tick['ATR_14'])
-    
-    if "BUY" in sig_status:
-        stop_loss = entry_price - (atr_val * 2.0)
-        t1 = float(latest_tick['Target_1'])
-        t2 = float(latest_tick['Target_2'])
-        display_color = "green"
-    elif "SELL" in sig_status:
-        stop_loss = entry_price + (atr_val * 2.0)
-        t1 = float(latest_tick['Target_1'])
-        t2 = float(latest_tick['Target_2'])
-        display_color = "red"
+    # Check Alerts
+    pattern = "NORMAL"
+    if last_row['Bullish_Engulfing']:
+        pattern = "🟢 BULLISH ENGULFING"
+    elif last_row['Hammer']:
+        pattern = "🔨 HAMMER DETECTED"
+        
+    if pattern != "NORMAL":
+        signals_list.append({
+            "Stock": stock,
+            "Price": f"₹{last_row['Close']:.2f}",
+            "RSI 14": f"{last_row['RSI_14']:.2f}",
+            "Pattern Alert": pattern,
+            "Time": datetime.now().strftime("%H:%M:%S")
+        })
+        
+    # Technical Matrix Rows
+    matrix_rows.append({
+        "Stock": stock,
+        "LTP": round(last_row['Close'], 2),
+        "RSI 14": round(last_row['RSI_14'], 2),
+        "MACD Hist": round(last_row['MACD_Hist'], 2),
+        "ATR 14": round(last_row['ATR_14'], 2),
+        "BB Upper": round(last_row['BB_Upper'], 2),
+        "BB Lower": round(last_row['BB_Lower'], 2)
+    })
+
+with signal_desk_container.container():
+    if signals_list:
+        st.dataframe(pd.DataFrame(signals_list), use_container_width=True)
     else:
-        stop_loss = entry_price - (atr_val * 2.0)
-        t1 = entry_price * 1.01
-        t2 = entry_price * 1.02
-        display_color = "orange"
+        st.success("✅ No critical institutional risk or breakout patterns detected in the last session.")
 
-    # Fully Secured Safe String Concatenation Pattern
-    html_string = '<div style="background-color: #171b26; padding: 25px; border-radius: 10px; border-left: 8px solid ' + display_color + '; margin-bottom: 20px;">'
-    html_string += '<h2 style="margin: 0; color: #ffffff;">SYSTEM CALL: <span style="color: ' + display_color + ';">' + sig_status.replace('_', ' ') + '</span></h2>'
-    html_string += '<p style="color: #848e9c; margin-top: 5px; font-size: 13px;">Asset ID: ' + str(target_stock) + ' | Generation Timestamp: ' + str(latest_tick[time_col]) + ' (Live Sync)</p>'
-    html_string += '<hr style="border: 0; border-top: 1px solid #2a2e39; margin: 15px 0;">'
-    html_string += '<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">'
+# 8. TECHNICAL MATRIX (SAFE FROM NAN AND PARTIAL RENDERING)
+st.header("⚡ Technical Matrix Pass")
+if matrix_rows:
+    matrix_df = pd.DataFrame(matrix_rows)
+    # Security layer against NameError or blank data pass
+    matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
+    st.dataframe(matrix_df, use_container_width=True)
+else:
+    st.warning("Technical Matrix builds are empty. Reloading database...")
+
+# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART
+st.sidebar.markdown("### 🔍 Stock Analysis")
+selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
+
+if selected_stock in all_data:
+    chart_df = all_data[selected_stock].reset_index()
+    
+    # Base chart for Candlestick
+    base = alt.Chart(chart_df.tail(30)).encode(
+        x=alt.X('Date:T', axis=alt.Axis(title="Timeline")),
+        color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#ff5353"))
+    )
+    
+    # Wick
+    rule = base.mark_rule().encode(
+        y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
+        y2=alt.Y('High:Q')
+    )
+    
+    # Body
+    bar = base.mark_bar().encode(
+        y='Open:Q',
+        y2='Close:Q'
+    )
+    
+    st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
+    st.altair_chart(rule + bar, use_container_width=True)
