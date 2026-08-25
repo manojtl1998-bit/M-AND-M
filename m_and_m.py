@@ -1,3 +1,10 @@
+import streamlit as st
+
+# ಹೊಸ ಡೆಪ್ಲಾಯ್ ಆದಾಗ ಹಳೆಯ ಕ್ಯಾಶ್ ಕ್ಲಿಯರ್ ಮಾಡುತ್ತದೆ
+if "init_deployment_check" not in st.session_state:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state["init_deployment_check"] = True
 import streamlit as pd_st
 import pandas as pd
 import numpy as np
