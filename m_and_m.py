@@ -187,7 +187,7 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (SPACING FIXED 100%)
+        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (SPACING COMPLETELY FLATTENED AND FIXED)
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         st_signal = df['SuperTrend_Signal'].iloc[-1]
         bb_upper = df['BB_Upper'].iloc[-1]
