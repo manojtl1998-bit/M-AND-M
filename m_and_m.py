@@ -40,9 +40,8 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
             return pd.DataFrame()
             
         # AGGRESSIVE MULTI-INDEX CLEANING NODE
-        # If yfinance returns a multi-index (e.g., Level 0: Price, Level 1: Ticker), flatten it immediately
         if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = [col[0] for col in raw_df.columns]
+            raw_df.columns = [col for col in raw_df.columns]
         else:
             raw_df.columns = [str(col) for col in raw_df.columns]
             
@@ -149,7 +148,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.2")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.3")
 pd_st.markdown("---")
 
 # 70+ Internal NSE Stocks Database Node
@@ -206,7 +205,7 @@ else:
 
     base_chart = alt.Chart(chart_df).encode(
         x=alt.X(f'{time_col}:T', title="Timeline Grid Matrix"),
-        color=alt.condition("datum.Open <= datum.Close", alt.value("#00e676"), alt.value("#ff1744")) # High Contrast Neon Bull/Bear
+        color=alt.condition("datum.Open <= datum.Close", alt.value("#00e676"), alt.value("#ff1744")) 
     )
 
     # Candlestick High/Low Wick Layer
@@ -232,3 +231,8 @@ else:
     integrated_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer).properties(
         width=1100, height=480
     ).configure_axis(
+        grid=True, gridColor='#242b35', labelColor='#8892b0', titleColor='#ffffff'
+    ).configure_view(
+        strokeOpacity=0, fill='#0e1117'
+    )
+
