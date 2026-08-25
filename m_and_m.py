@@ -198,7 +198,6 @@ else:
     chart_df = signal_ledger.tail(60).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Building Plotly Candlestick Base Layer [1, 2]
     fig = go.Figure()
     
     # Add Candlesticks
@@ -209,8 +208,8 @@ else:
         low=chart_df['Low'].values.flatten(),
         close=chart_df['Close'].values.flatten(),
         name='Price Feed',
-        increasing_line_color='#00e676', # Neon Green Bull [1, 2]
-        decreasing_line_color='#ff1744', # Crimson Red Bear [1, 2]
+        increasing_line_color='#00e676',
+        decreasing_line_color='#ff1744',
         increasing_fillcolor='#00e676',
         decreasing_fillcolor='#ff1744'
     ))
@@ -221,10 +220,9 @@ else:
         y=chart_df['Chandelier_Long'].values.flatten(),
         mode='lines',
         name='Chandelier Line',
-        line=dict(color='#ffea00', width=2) # Electric Yellow Line
+        line=dict(color='#ffea00', width=2)
     ))
     
-    # Apply Premium Dark Velvet Blue Theme Styling
     fig.update_layout(
         plot_bgcolor='#0b0f19',
         paper_bgcolor='#0b0f19',
@@ -232,7 +230,7 @@ else:
         xaxis=dict(
             gridcolor='#1e2638',
             tickfont=dict(color='#8892b0'),
-            rangeslider=dict(visible=False) # Remove bottom slider for neatness
+            rangeslider=dict(visible=False)
         ),
         yaxis=dict(
             gridcolor='#1e2638',
@@ -243,9 +241,15 @@ else:
         height=450
     )
     
-    # Render Layout
     pd_st.plotly_chart(fig, use_container_width=True)
 
     pd_st.markdown("---")
 
     # ==========================================
+    # 5. PORTFOLIO RISK MATRIX GRID
+    # ==========================================
+    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
+    
+    entry_price = float(latest_tick['Close'])
+    atr_value = float(latest_tick['ATR_14'])
+    stop_loss = entry_price - (atr_value * 2.0)
