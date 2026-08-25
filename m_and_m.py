@@ -2,6 +2,7 @@ import streamlit as pd_st
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # ==========================================
@@ -9,16 +10,15 @@ from datetime import datetime, timedelta
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
-    layout="wide",  # Dynamic wide framework
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Premium Full-Width Layout & Zero-Padding Configuration
 pd_st.markdown("""
     <style>
-        /* Force app to use 100% of the screen width with zero side margins */
         html, body, [data-testid="stAppViewContainer"] { 
-            background-color: #0b0e11 !important; 
+            background-color: #0b0f19 !important; 
             color: #f0f2f5 !important; 
         }
         .block-container {
@@ -30,8 +30,6 @@ pd_st.markdown("""
         }
         h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
         div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; font-size: 24px !important; }
-        
-        /* Premium Dataframe styling */
         .stDataFrame div { background-color: #12161a !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -150,7 +148,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.9")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.0")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -193,48 +191,61 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. HIGH-VISIBILITY LINE CHART PATTERN
+    # 4. HIGH-PERFORMANCE PLOTLY CANDLESTICK MATRIX (VISIBLE)
     # ==========================================
-    pd_st.subheader("📈 Close Price Matrix & Chandelier Momentum Line")
+    pd_st.subheader("📈 Institutional Candlestick Matrix & Chandelier Momentum Line")
     
     chart_df = signal_ledger.tail(60).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Standard line data creation
-    line_data = pd.DataFrame({
-        'Timeline': chart_df[time_col].values.flatten(),
-        'Close Price': chart_df['Close'].values.flatten(),
-        'Chandelier Target': chart_df['Chandelier_Long'].values.flatten()
-    }).set_index('Timeline')
+    # Building Plotly Candlestick Base Layer [1, 2]
+    fig = go.Figure()
     
-    # Native High-Performance Line Chart Render - Full Stretch Enabled
-    pd_st.line_chart(line_data, height=400, use_container_width=True)
+    # Add Candlesticks
+    fig.add_trace(go.Candlestick(
+        x=chart_df[time_col].values.flatten(),
+        open=chart_df['Open'].values.flatten(),
+        high=chart_df['High'].values.flatten(),
+        low=chart_df['Low'].values.flatten(),
+        close=chart_df['Close'].values.flatten(),
+        name='Price Feed',
+        increasing_line_color='#00e676', # Neon Green Bull [1, 2]
+        decreasing_line_color='#ff1744', # Crimson Red Bear [1, 2]
+        increasing_fillcolor='#00e676',
+        decreasing_fillcolor='#ff1744'
+    ))
+    
+    # Add Chandelier Target Line Overlay
+    fig.add_trace(go.Scatter(
+        x=chart_df[time_col].values.flatten(),
+        y=chart_df['Chandelier_Long'].values.flatten(),
+        mode='lines',
+        name='Chandelier Line',
+        line=dict(color='#ffea00', width=2) # Electric Yellow Line
+    ))
+    
+    # Apply Premium Dark Velvet Blue Theme Styling
+    fig.update_layout(
+        plot_bgcolor='#0b0f19',
+        paper_bgcolor='#0b0f19',
+        margin=dict(l=10, r=10, t=10, b=10),
+        xaxis=dict(
+            gridcolor='#1e2638',
+            tickfont=dict(color='#8892b0'),
+            rangeslider=dict(visible=False) # Remove bottom slider for neatness
+        ),
+        yaxis=dict(
+            gridcolor='#1e2638',
+            tickfont=dict(color='#8892b0'),
+            side='right'
+        ),
+        legend=dict(font=dict(color='#ffffff')),
+        height=450
+    )
+    
+    # Render Layout
+    pd_st.plotly_chart(fig, use_container_width=True)
 
     pd_st.markdown("---")
 
     # ==========================================
-    # 5. PORTFOLIO RISK MATRIX GRID
-    # ==========================================
-    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
-    
-    entry_price = float(latest_tick['Close'])
-    atr_value = float(latest_tick['ATR_14'])
-    stop_loss = entry_price - (atr_value * 2.0)
-    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
-    per_share_risk = entry_price - stop_loss
-    
-    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
-    total_trade_commitment = allocated_position_size * entry_price
-    leverage_multiple = total_trade_commitment / capital_allocation
-
-    # UI Grid Display with explicit block formatting
-    r1, r2, r3, r4 = pd_st.columns(4)
-    
-    with r1:
-        pd_st.info("**Absolute Risk Buffer**")
-        pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
-        pd_st.caption(f"Strict {max_risk_per_trade}% threshold limit.")
-        
-    with r2:
-        pd_st.warning("**Dynamic Stop-Loss Line**")
-        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
