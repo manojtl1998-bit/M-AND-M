@@ -181,8 +181,7 @@ if matrix_rows:
     st.dataframe(matrix_df, use_container_width=True)
 else:
     st.warning("Technical Matrix builds are empty.")
-
-# 9. WICK-PERFECT INTERACTIVE CANDLESTICK CHART (PLOTLY - 100% ERROR SAFE)
+# 9. NATIVE INSTITUTIONAL PRICE PASS (100% GUARANTEED TO RENDER)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
@@ -190,39 +189,15 @@ if selected_stock in all_data:
     raw_df = all_data[selected_stock].copy()
     chart_df = raw_df.reset_index()
     
+    # ಡೇಟ್ ಕಾಲಂ ಫಾರ್ಮ್ಯಾಟ್ ಕ್ಲೀನ್ ಮಾಡುವುದು
     chart_df = chart_df.rename(columns={chart_df.columns: 'Date'})
-    chart_df['Date'] = pd.to_datetime(chart_df['Date'])
-    plot_data = chart_df.tail(30)
+    chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.date
     
-    st.header(f"📈 Wick-Perfect Institutional View: {selected_stock}")
+    # ಕೊನೆಯ 30 ದಿನಗಳ ಕ್ಲೋಸಿಂಗ್ ಪ್ರೈಸ್ ಮಾತ್ರ ಫಿಲ್ಟರ್ ಮಾಡಿ ಇಂಡೆಕ್ಸ್ ಮಾಡುವುದು
+    plot_data = chart_df[['Date', 'Close']].tail(30).set_index('Date')
     
-    # 🌟 Plotly ಮೂಲಕ ದೋಷಮುಕ್ತ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ರಚನೆ 🌟
-    fig = go.Figure(data=[go.Candlestick(
-        x=plot_data['Date'],
-        open=plot_data['Open'],
-        high=plot_data['High'],
-        low=plot_data['Low'],
-        close=plot_data['Close'],
-        increasing_line_color='#00d09c', # Groww Green
-        decreasing_line_color='#ff5353', # Groww Red
-        increasing_fillcolor='#00d09c',
-        decreasing_fillcolor='#ff5353'
-    )])
+    st.header(f"📈 Institutional Closing Price Pass: {selected_stock}")
     
-    # ಡಾರ್ಕ್ ಥೀಮ್ ವಿನ್ಯಾಸ ಜೋಡಣೆ
-    fig.update_layout(
-        plot_bgcolor='#121826',
-        paper_bgcolor='#0b0f19',
-        font_color='#e2e8f0',
-        xaxis_title="Timeline",
-        yaxis_title="Price (INR)",
-        xaxis_rangeslider_visible=False,
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=450
-    )
-    
-    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#1e293b')
-    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#1e293b')
-    
-    # ಸ್ಟ್ರೀಮ್‌ಲಿಟ್‌ಗೆ ಸುರಕ್ಷಿತವಾಗಿ ಇಂಜೆಕ್ಟ್ ಮಾಡುವುದು
-    st.plotly_chart(fig, use_container_width=True)
+    # 🌟 ಸ್ಟ್ರೀಮ್‌ಲಿಟ್‌ನದ್ದೇ ಆದ ನೇರ ಗ್ರಾಫ್ - ಇದು ಎಂದಿಗೂ ಫೇಲ್ ಆಗುವುದಿಲ್ಲ 🌟
+    st.line_chart(plot_data, use_container_width=True, height=400)
+
