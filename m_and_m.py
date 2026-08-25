@@ -179,23 +179,38 @@ if matrix_rows:
 else:
     st.warning("Technical Matrix builds are empty. Reloading database...")
 
-# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (SAFE FOR ALL YFINANCE INDEX TYPES)
+# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (COMPLETELY SAFE FROM SCHEMA ERRORS)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
 if selected_stock in all_data:
-    # ಡೇಟಾವನ್ನು ಕಾಪಿ ಮಾಡಿ ಇಂಡೆಕ್ಸ್ ರೀಸೆಟ್ ಮಾಡುವುದು
-    chart_df = all_data[selected_stock].copy().reset_index()
+    # 1. ಡೇಟಾವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಪ್ರತ್ಯೇಕ ಕಾಪಿಯಾಗಿ ತೆಗೆದುಕೊಳ್ಳಿ
+    raw_df = all_data[selected_stock].copy()
     
-    # yfinance ಇಂಡೆಕ್ಸ್ ಹೆಸರನ್ನು ಕಡ್ಡಾಯವಾಗಿ 'Date' ಎಂದು ಬದಲಾಯಿಸುವ ಲೇಯರ್
-    chart_df.columns = [col.to_series().iloc[0] if isinstance(col, pd.MultiIndex) else col for col in chart_df.columns]
+    # 2. ಮಲ್ಟಿ-ಇಂಡೆಕ್ಸ್ ಕಾಲಂಗಳು ಇದ್ದರೆ ಅವುಗಳನ್ನು ಫ್ಲಾಟನ್ (Flatten) ಮಾಡಿ ಕೇವಲ ಮೊದಲ ಹೆಸರನ್ನು ಇಡುವುದು
+    if isinstance(raw_df.columns, pd.MultiIndex):
+        raw_df.columns = [col[0] for col in raw_df.columns]
+    
+    # 3. ಎಲ್ಲಾ ಕಾಲಂ ಹೆಸರುಗಳನ್ನು ಕಡ್ಡಾಯವಾಗಿ ಸ್ಟ್ರಿಂಗ್ (String) ಆಗಿ ಪರಿವರ್ತಿಸುವುದು
+    raw_df.columns = raw_df.columns.map(str)
+    
+    # 4. ಇಂಡೆಕ್ಸ್ ರೀಸೆಟ್ ಮಾಡಿ ಡೇಟ್ ಕಾಲಂ ಅನ್ನು ಮೊದಲ ಸ್ಥಾನಕ್ಕೆ ತರುವುದು
+    chart_df = raw_df.reset_index()
+    
+    # 5. ಡೇಟ್ ಕಾಲಂ ಹೆಸರನ್ನು ಸರಳವಾದ 'Date' ಎಂದು ಬದಲಾಯಿಸುವುದು
     chart_df = chart_df.rename(columns={chart_df.columns[0]: 'Date'})
     
-    # ಜಾವಾಸ್ಕ್ರಿಪ್ಟ್ ಸೀರಿಯಲೈಸೇಶನ್ ದೋಷ ತಡೆಯಲು ಡೇಟಾ ಟೈಪ್ ಬದಲಾವಣೆ
+    # 6. ಡೇಟ್ ಅನ್ನು ಟೆಕ್ಸ್ಟ್ ಫಾರ್ಮ್ಯಾಟ್‌ಗೆ ಬದಲಾಯಿಸುವುದು
     chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
     
-    # ಕೊನೆಯ 30 ದಿನಗಳ ಡೇಟಾ ಮಾತ್ರ
-    plot_data = chart_df.tail(30)
+    # 7. ಅಲ್ಟೇರ್‌ಗೆ ಬೇಕಾದ ಮುಖ್ಯ ಕಾಲಂಗಳು ಇವೆಯೇ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳುವುದು
+    required_cols = ['Date', 'Open', 'High', 'Low', 'Close']
+    for col in required_cols:
+        if col in chart_df.columns:
+            chart_df[col] = pd.to_numeric(chart_df[col], errors='coerce')
+            
+    # ಕೊನೆಯ 30 ದಿನಗಳ ಕ್ಲೀನ್ ಡೇಟಾ
+    plot_data = chart_df[required_cols].tail(30).reset_index(drop=True)
     
     # ಬೇಸ್ ಚಾರ್ಟ್ ಕಾನ್ಫಿಗರೇಶನ್
     base = alt.Chart(plot_data).encode(
@@ -207,18 +222,20 @@ if selected_stock in all_data:
         )
     )
     
-    # Wick (ಕನಿಷ್ಠ ಮತ್ತು ಗರಿಷ್ಠ ಬೆಲೆ)
+    # Wick (Low ಮತ್ತು High ಲೈನ್)
     rule = base.mark_rule().encode(
         y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
         y2=alt.Y('High:Q')
     )
     
-    # Body (ಓಪನ್ ಮತ್ತು ಕ್ಲೋಸ್ ಬೆಲೆ)
+    # Body (Open ಮತ್ತು Close ಬಾಕ್ಸ್)
     bar = base.mark_bar().encode(
         y='Open:Q',
         y2='Close:Q'
     )
     
     st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
-    # ಎರಡು ಲೇಯರ್‌ಗಳನ್ನು ಕಂಬೈನ್ ಮಾಡಿ ಚಾರ್ಟ್ ಪ್ರದರ್ಶಿಸುವುದು
-    st.altair_chart(rule + bar, use_container_width=True)
+    
+    # ಎರಡು ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಕಂಬೈನ್ ಮಾಡಿ ಡಿಸ್ಪ್ಲೇ ಮಾಡುವುದು
+    final_chart = alt.layer(rule, bar).properties(width='container', height=400)
+    st.altair_chart(final_chart, use_container_width=True)
