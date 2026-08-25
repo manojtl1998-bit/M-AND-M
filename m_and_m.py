@@ -116,8 +116,10 @@ data_load_state = st.info("🔄 Institutional Data Grid ಪ್ರೊಸೆಸ್
 all_data = fetch_terminal_data()
 data_load_state.empty()
 
-# 6. MARKET MOVEMENT DASHBOARD (NIFTY METRICS)
+# 6. MARKET MOVEMENT DASHBOARD (NIFTY & SENSEX METRICS FIX)
 st.sidebar.markdown("### 🏢 Market Indices")
+
+# --- A. NIFTY 50 FETCH ---
 try:
     nifty = yf.Ticker("^NSEI").history(period="2d")
     if not nifty.empty:
@@ -128,7 +130,21 @@ try:
         nifty_change = float(((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2]) * 100)
         st.sidebar.metric("NIFTY 50", f"{nifty_close:.2f}", f"{nifty_change:+.2f}%")
 except Exception:
-    st.sidebar.write("Indices data temporarily delayed")
+    st.sidebar.write("⚠️ NIFTY data temporarily delayed")
+
+# --- B. SENSEX FETCH (🌟 ಹೊಸದಾಗಿ ಸೇರಿಸಲಾದ ಲೇಯರ್ 🌟) ---
+try:
+    sensex = yf.Ticker("^BSESN").history(period="2d")
+    if not sensex.empty:
+        if isinstance(sensex.columns, pd.MultiIndex):
+            sensex.columns = [col for col in sensex.columns]
+        sensex.columns = sensex.columns.map(str)
+        sensex_close = float(sensex['Close'].iloc[-1])
+        sensex_change = float(((sensex['Close'].iloc[-1] - sensex['Close'].iloc[-2]) / sensex['Close'].iloc[-2]) * 100)
+        st.sidebar.metric("BSE SENSEX", f"{sensex_close:.2f}", f"{sensex_change:+.2f}%")
+except Exception:
+    st.sidebar.write("⚠️ SENSEX data temporarily delayed")
+
 
 # 7. LIVE SIGNAL DESK (COMBINED LEDGER)
 st.header("📊 Live Signal Desk")
