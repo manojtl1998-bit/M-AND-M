@@ -6,7 +6,7 @@ import altair as alt
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. SYSTEM CONFIGURATION & GROWW DARK THEME
+# 1. SYSTEM CONFIGURATION & PREMIUM AMBIENT DARK THEME
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
@@ -14,16 +14,16 @@ pd_st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Premium Groww Dark Theme Palette
+# Custom CSS for Premium Deep Slate Blue Theme
 pd_st.markdown("""
     <style>
-        .reportview-container { background: #0b0e11; color: #9aa0a6; }
-        .sidebar .sidebar-content { background: #12161a; }
+        .reportview-container { background: #0e1117; color: #a6adbb; }
+        .sidebar .sidebar-content { background: #161b22; }
         h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-        div[data-testid="stMetricValue"] { color: #00d09c !important; font-size: 24px !important; font-weight: 700; }
-        div[data-testid="stMetricDelta"] { color: #eb5b3c !important; }
-        .stButton>button { background-color: #00d09c; color: #ffffff; border-radius: 6px; border: none; font-weight: bold;}
-        .stButton>button:hover { background-color: #00b386; color: #ffffff; }
+        div[data-testid="stMetricValue"] { color: #00e676 !important; font-size: 26px !important; font-weight: 700; }
+        div[data-testid="stMetricDelta"] { color: #ff1744 !important; }
+        .stButton>button { background-color: #00e676; color: #000000; border-radius: 6px; border: none; font-weight: bold;}
+        .stButton>button:hover { background-color: #00b252; color: #000000; }
         div.block-container { padding-top: 2rem; padding-bottom: 2rem; }
     </style>
 """, unsafe_allow_html=True)
@@ -41,7 +41,7 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
             
         # Clean multi-index columns aggressively if yfinance returns them
         if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = [col[0] for col in raw_df.columns]
+            raw_df.columns = [col for col in raw_df.columns]
             
         raw_df = raw_df.reset_index()
         return raw_df
@@ -139,7 +139,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Live Alpha Generation Engine & Portfolio Risk Matrix | Institutional Grade v2.0")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.1")
 pd_st.markdown("---")
 
 # 70+ Internal NSE Stocks Database Node
@@ -183,9 +183,9 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. WICK-PERFECT ALTAIR CANDLESTICK CHART
+    # 4. ENHANCED HOLLOW/SOLID CANDLESTICK CHART PATTERN
     # ==========================================
-    pd_st.subheader("📈 Institutional Candlestick Matrix & Chandelier Band")
+    pd_st.subheader("📈 Candlestick Matrix Pattern & Trailing Momentum Band")
     
     time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
     
@@ -195,36 +195,36 @@ else:
         chart_df[col] = chart_df[col].values.flatten()
 
     base_chart = alt.Chart(chart_df).encode(
-        x=alt.X(f'{time_col}:T', title="Timeline Matrix"),
-        color=alt.condition("datum.Open <= datum.Close", alt.value("#00d09c"), alt.value("#eb5b3c"))
+        x=alt.X(f'{time_col}:T', title="Timeline Grid Matrix"),
+        color=alt.condition("datum.Open <= datum.Close", alt.value("#00e676"), alt.value("#ff1744")) # High Contrast Neon Bull/Bear
     )
 
-    # Wick Layer
-    rule_layer = base_chart.mark_rule(opacity=0.7).encode(
-        y=alt.Y('Low:Q', scale=alt.Scale(zero=False)),
+    # Candlestick High/Low Wick Layer
+    rule_layer = base_chart.mark_rule(opacity=0.8, strokeWidth=1.5).encode(
+        y=alt.Y('Low:Q', scale=alt.Scale(zero=False), title="Price Scale (INR)"),
         y2='High:Q'
     )
 
-    # Candle Body Layer
-    bar_layer = base_chart.mark_bar().encode(
+    # Candlestick Real Body Layer
+    bar_layer = base_chart.mark_bar(width=6).encode(
         y='Open:Q',
         y2='Close:Q'
     )
 
-    # Chandelier Trailing Band Overlap
+    # Chandelier Trailing Band Overlap (Electric Yellow Line)
     chandelier_layer = alt.Chart(chart_df).mark_line(
-        color='#ffb703', strokeWidth=2
+        color='#ffea00', strokeWidth=2.5, strokeDash=[4, 4]
     ).encode(
         x=f'{time_col}:T',
         y='Chandelier_Long:Q'
     )
 
     integrated_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer).properties(
-        width=1100, height=450
+        width=1100, height=480
     ).configure_axis(
-        gridColor='#1f262e', labelColor='#9aa0a6', titleColor='#ffffff'
+        grid=True, gridColor='#242b35', labelColor='#8892b0', titleColor='#ffffff'
     ).configure_view(
-        strokeOpacity=0
+        strokeOpacity=0, fill='#0e1117'
     )
 
     pd_st.altair_chart(integrated_terminal_chart, use_container_width=True)
@@ -236,7 +236,3 @@ else:
     # ==========================================
     pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
     
-    entry_price = float(latest_tick['Close'])
-    atr_value = float(latest_tick['ATR_14'])
-    stop_loss = entry_price - (atr_value * 2.0)
-    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
