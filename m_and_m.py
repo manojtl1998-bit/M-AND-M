@@ -39,11 +39,21 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
         if raw_df.empty:
             return pd.DataFrame()
             
-        # Clean multi-index columns aggressively if yfinance returns them
+        # AGGRESSIVE MULTI-INDEX CLEANING NODE
+        # If yfinance returns a multi-index (e.g., Level 0: Price, Level 1: Ticker), flatten it immediately
         if isinstance(raw_df.columns, pd.MultiIndex):
-            raw_df.columns = [col for col in raw_df.columns]
+            raw_df.columns = [col[0] for col in raw_df.columns]
+        else:
+            raw_df.columns = [str(col) for col in raw_df.columns]
             
         raw_df = raw_df.reset_index()
+        
+        # Ensure standardized naming convention across all versions
+        rename_dict = {
+            'Date': 'Date', 'Datetime': 'Datetime', 'Open': 'Open', 
+            'High': 'High', 'Low': 'Low', 'Close': 'Close', 'Volume': 'Volume'
+        }
+        raw_df = raw_df.rename(columns=rename_dict)
         return raw_df
     except Exception:
         return pd.DataFrame()
@@ -139,7 +149,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.1")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 2.2")
 pd_st.markdown("---")
 
 # 70+ Internal NSE Stocks Database Node
@@ -213,7 +223,7 @@ else:
 
     # Chandelier Trailing Band Overlap (Electric Yellow Line)
     chandelier_layer = alt.Chart(chart_df).mark_line(
-        color='#ffea00', strokeWidth=2.5, strokeDash=[4, 4]
+        color='#ffea00', strokeWidth=2.5
     ).encode(
         x=f'{time_col}:T',
         y='Chandelier_Long:Q'
@@ -222,17 +232,3 @@ else:
     integrated_terminal_chart = alt.layer(rule_layer, bar_layer, chandelier_layer).properties(
         width=1100, height=480
     ).configure_axis(
-        grid=True, gridColor='#242b35', labelColor='#8892b0', titleColor='#ffffff'
-    ).configure_view(
-        strokeOpacity=0, fill='#0e1117'
-    )
-
-    pd_st.altair_chart(integrated_terminal_chart, use_container_width=True)
-
-    pd_st.markdown("---")
-
-    # ==========================================
-    # 5. PORTFOLIO RISK MATRIX GRID
-    # ==========================================
-    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
-    
