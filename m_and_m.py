@@ -182,8 +182,7 @@ if matrix_rows:
     st.dataframe(matrix_df, use_container_width=True)
 else:
     st.warning("Technical Matrix builds are empty.")
-
-# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (100% SCHEMA SAFE FIX)
+# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (100% DATA-TYPE VALIDATION FIX)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
@@ -191,33 +190,41 @@ if selected_stock in all_data:
     raw_df = all_data[selected_stock].copy()
     chart_df = raw_df.reset_index()
     
-    # ಹಳೆಯ ಟೈಮ್ ಸ್ಟ್ಯಾಂಪ್ ಮೆಟಾಡೇಟಾ ಕ್ಲೀನ್ ಮಾಡಿ ಕೇವಲ 'Date' ಎಂದು ಬದಲಾಯಿಸುವುದು
+    # ಡೇಟ್ ಮತ್ತು ಮುಖ್ಯ ಕಾಲಂ ಹೆಸರನ್ನು ಸುಲಭವಾಗಿ ಬದಲಾಯಿಸುವುದು
     chart_df = chart_df.rename(columns={chart_df.columns[0]: 'Date'})
     chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
     
-    # ಕೇವಲ ನಮಗೆ ಬೇಕಾದ ಮುಖ್ಯ ವ್ಯಾಲ್ಯೂಗಳನ್ನು ಮಾತ್ರ ಫಿಲ್ಟರ್ ಮಾಡುವುದು
+    # ಕೊನೆಯ 30 ದಿನಗಳ ಡೇಟಾ ಫಿಲ್ಟರ್
     chart_df = chart_df[['Date', 'Open', 'High', 'Low', 'Close']].tail(30)
     
-    # 🌟 ಸೀಕ್ರೆಟ್ ಫಿಕ್ಸ್: ಡೇಟಾವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಪ್ಯೂರ್ ಜಾವಾಸ್ಕ್ರಿಪ್ಟ್ ಆಬ್ಜೆಕ್ಟ್ (List of Dicts) ಆಗಿ ಪರಿವರ್ತಿಸುವುದು 🌟
-    pure_records = chart_df.to_dict(orient='records')
+    # 🌟 ಅಲ್ಟೇರ್ ಸ್ಕೀಮಾ ದೋಷ ತಡೆಯಲು ಎಲ್ಲಾ ನಂಬರ್‌ಗಳನ್ನು ಪ್ಯೂರ್ ಪೈಥಾನ್ ಫ್ಲೋಟ್ (Float) ಗೆ ಬದಲಾಯಿಸುವ ಲೇಯರ್ 🌟
+    pure_records = []
+    for _, row in chart_df.iterrows():
+        pure_records.append({
+            "Date": str(row['Date']),
+            "Open": float(row['Open']),
+            "High": float(row['High']),
+            "Low": float(row['Low']),
+            "Close": float(row['Close'])
+        })
     
-    # ಬೇಸ್ ಚಾರ್ಟ್ ಕ್ರಿಯೇಷನ್ (ಡೇಟಾಫ್ರೇಮ್ ಬದಲಾಗಿ ರೆಕಾರ್ಡ್ಸ್ ಲಿಸ್ಟ್ ಬಳಸಲಾಗಿದೆ)
+    # ಚಾರ್ಟ್ ರಚನೆ (ಪ್ಯೂರ್ ಪೈಥಾನ್ ಡಿಕ್ಷನರಿ ಡೇಟಾದೊಂದಿಗೆ)
     base = alt.Chart(alt.Data(values=pure_records)).encode(
         x=alt.X('Date:N', axis=alt.Axis(title="Timeline", labelAngle=-45)),
         color=alt.condition(
             "datum.Open <= datum.Close", 
-            alt.value("#00d09c"), 
-            alt.value("#ff5353")
+            alt.value("#00d09c"), # Groww Green
+            alt.value("#ff5353")  # Groww Red
         )
     )
     
-    # Wick Line
+    # Wick ಲೈನ್
     rule = base.mark_rule().encode(
         y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
         y2=alt.Y('High:Q')
     )
     
-    # Bar Body
+    # Bar ಬಾಡಿ
     bar = base.mark_bar().encode(
         y='Open:Q',
         y2='Close:Q'
@@ -225,6 +232,7 @@ if selected_stock in all_data:
     
     st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
     
-    # ಚಾರ್ಟ್ ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಜೋಡಿಸುವುದು
+    # ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಜೋಡಿಸಿ ಪ್ರದರ್ಶಿಸುವುದು
     final_chart = alt.layer(rule, bar).properties(height=400)
     st.altair_chart(final_chart, use_container_width=True)
+
