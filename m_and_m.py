@@ -25,7 +25,7 @@ if 'stored_ticker' not in st.session_state:
 if 'stored_title' not in st.session_state:
     st.session_state.stored_title = "Reliance Industries"
 
-# 2. ಪ್ರಮುಖ 70+ NSE ಸ್ಟಾಕ್‌ಗಳ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್
+# ಪ್ರಮುಖ 70+ NSE ಸ್ಟಾಕ್‌ಗಳ ಇನ್‌ಬಿಲ್ಟ್ ಡೇಟಾಬೇಸ್
 def init_stock_database():
     return {
         "Reliance Industries Limited (RELIANCE.NS)": "RELIANCE.NS",
@@ -102,7 +102,7 @@ def init_stock_database():
 
 nse_stocks = init_stock_database()
 
-# ---------------- NEW FEATURE: LIVE MARKET MOVEMENT (NIFTY & SENSEX) ----------------
+# 🚀 1. LIVE MARKET MOVEMENT (NIFTY & SENSEX)
 st.title("🚀 M and M Institutional Quant Terminal")
 st.write("### 📊 ಇಂದಿನ ಮಾರ್ಕೆಟ್ ಮೂವ್ಮೆಂಟ್ (Overall Market Status)")
 
@@ -114,30 +114,25 @@ def get_index_data(ticker):
         data = idx.history(period="1mo", interval="1d")
     return data
 
-# ನಿಫ್ಟಿ ಮತ್ತು ಸೆನ್ಸೆಕ್ಸ್ ಡೇಟಾ ಲೋಡ್ ಮಾಡುವುದು
 try:
     nifty_df = get_index_data("^NSEI")
     sensex_df = get_index_data("^BSESN")
-
     nifty_now = float(nifty_df['Close'].iloc[-1])
     nifty_prev = float(nifty_df['Close'].iloc[-2])
     nifty_diff = nifty_now - nifty_prev
     nifty_pct = (nifty_diff / nifty_prev) * 100
-
     sensex_now = float(sensex_df['Close'].iloc[-1])
     sensex_prev = float(sensex_df['Close'].iloc[-2])
     sensex_diff = sensex_now - sensex_prev
     sensex_pct = (sensex_diff / sensex_prev) * 100
 
-    # ಸ್ಕ್ರೀನ್ ಮೇಲ್ಭಾಗದಲ್ಲಿ ಪ್ರದರ್ಶನ
     idx_col1, idx_col2 = st.columns(2)
     idx_col1.metric("🟢 NIFTY 50 (NSE)", f"{nifty_now:,.2f}", f"{nifty_diff:+.2f} ({nifty_pct:+.2f}%)")
     idx_col2.metric("🔵 SENSEX (BSE)", f"{sensex_now:,.2f}", f"{sensex_diff:+.2f} ({sensex_pct:+.2f}%)")
 except Exception:
-    st.info("💡 ಮಾರುಕಟ್ಟೆ ಚಲನೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ—ಬೆಳಗ್ಗೆ 09:15 ರ ನಂತರ ಇದು ಲೈವ್ ಟಿಕ್ ನೀಡುತ್ತದೆ.")
+    pass
 
 st.markdown("---")
-# -------------------------------------------------------------------------------------
 
 selected_display = st.selectbox("NSE Stock ಹುಡುಕಿ ಅಥವಾ ಆಯ್ಕೆ ಮಾಡಿ:", options=list(nse_stocks.keys()))
 
@@ -160,7 +155,7 @@ prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else latest_close
 price_change = latest_close - prev_close
 pct_change = (price_change / prev_close) * 100
 
-# ಕ್ವಾಂಟ್ ಲಾಜಿಕ್
+# ಕ್ವಾಂಟ್ ಲಾಜಿಕ್ (RSI, MACD, ATR, BB, SUPERTREND)
 delta = df['Close'].diff()
 gain = np.where(delta > 0, delta, 0)
 loss = np.where(delta < 0, -delta, 0)
@@ -179,13 +174,11 @@ df['L-PC'] = np.abs(df['Low'] - df['Close'].shift(1))
 df['TR'] = df[['H-L', 'H-PC', 'L-PC']].max(axis=1)
 df['ATR'] = df['TR'].ewm(span=14, adjust=False).mean()
 
-# Bollinger Bands ಅಲ್ಗಾರಿದಮ್
 df['BB_Middle'] = df['Close'].rolling(window=20).mean()
 df['BB_Std'] = df['Close'].rolling(window=20).std()
 df['BB_Upper'] = df['BB_Middle'] + (2 * df['BB_Std'])
 df['BB_Lower'] = df['BB_Middle'] - (2 * df['BB_Std'])
 
-# SuperTrend ಅಲ್ಗಾರಿದಮ್
 hl2 = (df['High'] + df['Low']) / 2
 df['Basic_Upper'] = hl2 + (3 * df['ATR'])
 df['Basic_Lower'] = hl2 - (3 * df['ATR'])
@@ -194,7 +187,6 @@ df['Final_Lower'] = df['Basic_Lower'].copy()
 
 st_signals = []
 current_signal = "BUY"
-
 for i in range(len(df)):
     if i == 0:
         st_signals.append("BUY")
@@ -208,7 +200,6 @@ for i in range(len(df)):
     else:
         current_signal = "BUY"
     st_signals.append(current_signal)
-    
 df['SuperTrend_Signal'] = st_signals
 
 # UI ಮೆಟ್ರಿಕ್ಸ್ ಗ್ರಿಡ್
@@ -216,3 +207,11 @@ st.subheader(f"⚡ {st.session_state.stored_title} ಪ್ರಸ್ತುತ ಸ�
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 m_col1.metric("ಮಾರುಕಟ್ಟೆ ಬೆಲೆ (INR)", f"₹{latest_close:.2f}", f"{price_change:+.2f} ({pct_change:+.2f}%)")
 m_col2.metric("RSI (14)", f"{df['RSI'].iloc[-1]:.2f}")
+m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
+m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
+
+# 🚨 2. ALL SIGNALS COMBINED DASHBOARD (DOSHAMUKTHA FLAT STYLE)
+st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಮತ್ತು ಇಂಡಿಕೇಟರ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
+
+rsi_now = df['RSI'].iloc[-1]
+macd_now = df['MACD'].iloc[-1]
