@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import altair as alt
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 1. STREAMLIT PAGE CONFIG & GROWW DARK THEME
 st.set_page_config(page_title="M&M Institutional Quant Terminal", layout="wide", initial_sidebar_state="expanded")
@@ -78,10 +78,10 @@ def calculate_indicators(df):
     df['BB_Upper'] = df['BB_Middle'] + (df['BB_Std'] * 2)
     df['BB_Lower'] = df['BB_Middle'] - (df['BB_Std'] * 2)
     
-    # SuperTrend Loop (10, 3)
+    # SuperTrend Loop Placeholder
     df['ST_Upper'] = ((df['High'] + df['Low']) / 2) + (3 * df['ATR_14'])
     df['ST_Lower'] = ((df['High'] + df['Low']) / 2) - (3 * df['ATR_14'])
-    df['SuperTrend'] = df['ST_Lower'] # Placeholder for loop stability
+    df['SuperTrend'] = df['ST_Lower']
     
     # Candlestick Pattern Alerts
     df['Bullish_Engulfing'] = (df['Close'] > df['Open']) & \
@@ -95,7 +95,7 @@ def calculate_indicators(df):
                    
     return df.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-# 5. DATA FETCHING (yfinance)
+# 5. DATA FETCHING (yfinance) WITH MULTIINDEX FIX
 @st.cache_data(ttl=300)
 def fetch_terminal_data():
     master_data = {}
@@ -104,6 +104,10 @@ def fetch_terminal_data():
             ticker = yf.Ticker(stock)
             df = ticker.history(period="3mo", interval="1d")
             if not df.empty:
+                # ಮಲ್ಟಿ ಇಂಡೆಕ್ಸ್ ಕಾಲಂಗಳನ್ನು ಕ್ಲೀನ್ ಮಾಡುವುದು
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [col[0] for col in df.columns]
+                df.columns = df.columns.map(str)
                 master_data[stock] = calculate_indicators(df)
         except Exception:
             continue
@@ -113,18 +117,21 @@ data_load_state = st.info("🔄 Institutional Data Grid ಪ್ರೊಸೆಸ್
 all_data = fetch_terminal_data()
 data_load_state.empty()
 
-# 6. MARKET MOVEMENT DASHBOARD (NIFTY / SENSEX METRICS)
+# 6. MARKET MOVEMENT DASHBOARD (NIFTY METRICS)
 st.sidebar.markdown("### 🏢 Market Indices")
 try:
     nifty = yf.Ticker("^NSEI").history(period="2d")
     if not nifty.empty:
-        nifty_close = nifty['Close'].iloc[-1]
-        nifty_change = ((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2]) * 100
+        if isinstance(nifty.columns, pd.MultiIndex):
+            nifty.columns = [col[0] for col in nifty.columns]
+        nifty.columns = nifty.columns.map(str)
+        nifty_close = float(nifty['Close'].iloc[-1])
+        nifty_change = float(((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2]) * 100)
         st.sidebar.metric("NIFTY 50", f"{nifty_close:.2f}", f"{nifty_change:+.2f}%")
 except Exception:
     st.sidebar.write("Indices data temporarily delayed")
 
-# 7. LIVE SIGNAL DESK (COMBINED LEDGER WITH CONTAINERS)
+# 7. LIVE SIGNAL DESK (COMBINED LEDGER)
 st.header("📊 Live Signal Desk")
 signal_desk_container = st.empty()
 
@@ -136,31 +143,29 @@ for stock, df in all_data.items():
         continue
     last_row = df.iloc[-1]
     
-    # Check Alerts
     pattern = "NORMAL"
-    if last_row['Bullish_Engulfing']:
+    if bool(last_row['Bullish_Engulfing']):
         pattern = "🟢 BULLISH ENGULFING"
-    elif last_row['Hammer']:
+    elif bool(last_row['Hammer']):
         pattern = "🔨 HAMMER DETECTED"
         
     if pattern != "NORMAL":
         signals_list.append({
             "Stock": stock,
-            "Price": f"₹{last_row['Close']:.2f}",
-            "RSI 14": f"{last_row['RSI_14']:.2f}",
+            "Price": f"₹{float(last_row['Close']):.2f}",
+            "RSI 14": f"{float(last_row['RSI_14']):.2f}",
             "Pattern Alert": pattern,
             "Time": datetime.now().strftime("%H:%M:%S")
         })
         
-    # Technical Matrix Rows
     matrix_rows.append({
         "Stock": stock,
-        "LTP": round(last_row['Close'], 2),
-        "RSI 14": round(last_row['RSI_14'], 2),
-        "MACD Hist": round(last_row['MACD_Hist'], 2),
-        "ATR 14": round(last_row['ATR_14'], 2),
-        "BB Upper": round(last_row['BB_Upper'], 2),
-        "BB Lower": round(last_row['BB_Lower'], 2)
+        "LTP": round(float(last_row['Close']), 2),
+        "RSI 14": round(float(last_row['RSI_14']), 2),
+        "MACD Hist": round(float(last_row['MACD_Hist']), 2),
+        "ATR 14": round(float(last_row['ATR_14']), 2),
+        "BB Upper": round(float(last_row['BB_Upper']), 2),
+        "BB Lower": round(float(last_row['BB_Lower']), 2)
     })
 
 with signal_desk_container.container():
@@ -169,66 +174,50 @@ with signal_desk_container.container():
     else:
         st.success("✅ No critical institutional risk or breakout patterns detected in the last session.")
 
-# 8. TECHNICAL MATRIX (SAFE FROM NAN AND PARTIAL RENDERING)
+# 8. TECHNICAL MATRIX PASS
 st.header("⚡ Technical Matrix Pass")
 if matrix_rows:
     matrix_df = pd.DataFrame(matrix_rows)
-    # Security layer against NameError or blank data pass
     matrix_df = matrix_df.replace([np.inf, -np.inf], np.nan).fillna(0)
     st.dataframe(matrix_df, use_container_width=True)
 else:
-    st.warning("Technical Matrix builds are empty. Reloading database...")
+    st.warning("Technical Matrix builds are empty.")
 
-# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (COMPLETELY SAFE FROM SCHEMA ERRORS)
+# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (100% SCHEMA SAFE FIX)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
 if selected_stock in all_data:
-    # 1. ಡೇಟಾವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಪ್ರತ್ಯೇಕ ಕಾಪಿಯಾಗಿ ತೆಗೆದುಕೊಳ್ಳಿ
     raw_df = all_data[selected_stock].copy()
-    
-    # 2. ಮಲ್ಟಿ-ಇಂಡೆಕ್ಸ್ ಕಾಲಂಗಳು ಇದ್ದರೆ ಅವುಗಳನ್ನು ಫ್ಲಾಟನ್ (Flatten) ಮಾಡಿ ಕೇವಲ ಮೊದಲ ಹೆಸರನ್ನು ಇಡುವುದು
-    if isinstance(raw_df.columns, pd.MultiIndex):
-        raw_df.columns = [col[0] for col in raw_df.columns]
-    
-    # 3. ಎಲ್ಲಾ ಕಾಲಂ ಹೆಸರುಗಳನ್ನು ಕಡ್ಡಾಯವಾಗಿ ಸ್ಟ್ರಿಂಗ್ (String) ಆಗಿ ಪರಿವರ್ತಿಸುವುದು
-    raw_df.columns = raw_df.columns.map(str)
-    
-    # 4. ಇಂಡೆಕ್ಸ್ ರೀಸೆಟ್ ಮಾಡಿ ಡೇಟ್ ಕಾಲಂ ಅನ್ನು ಮೊದಲ ಸ್ಥಾನಕ್ಕೆ ತರುವುದು
     chart_df = raw_df.reset_index()
     
-    # 5. ಡೇಟ್ ಕಾಲಂ ಹೆಸರನ್ನು ಸರಳವಾದ 'Date' ಎಂದು ಬದಲಾಯಿಸುವುದು
+    # ಹಳೆಯ ಟೈಮ್ ಸ್ಟ್ಯಾಂಪ್ ಮೆಟಾಡೇಟಾ ಕ್ಲೀನ್ ಮಾಡಿ ಕೇವಲ 'Date' ಎಂದು ಬದಲಾಯಿಸುವುದು
     chart_df = chart_df.rename(columns={chart_df.columns[0]: 'Date'})
-    
-    # 6. ಡೇಟ್ ಅನ್ನು ಟೆಕ್ಸ್ಟ್ ಫಾರ್ಮ್ಯಾಟ್‌ಗೆ ಬದಲಾಯಿಸುವುದು
     chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
     
-    # 7. ಅಲ್ಟೇರ್‌ಗೆ ಬೇಕಾದ ಮುಖ್ಯ ಕಾಲಂಗಳು ಇವೆಯೇ ಎಂದು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳುವುದು
-    required_cols = ['Date', 'Open', 'High', 'Low', 'Close']
-    for col in required_cols:
-        if col in chart_df.columns:
-            chart_df[col] = pd.to_numeric(chart_df[col], errors='coerce')
-            
-    # ಕೊನೆಯ 30 ದಿನಗಳ ಕ್ಲೀನ್ ಡೇಟಾ
-    plot_data = chart_df[required_cols].tail(30).reset_index(drop=True)
+    # ಕೇವಲ ನಮಗೆ ಬೇಕಾದ ಮುಖ್ಯ ವ್ಯಾಲ್ಯೂಗಳನ್ನು ಮಾತ್ರ ಫಿಲ್ಟರ್ ಮಾಡುವುದು
+    chart_df = chart_df[['Date', 'Open', 'High', 'Low', 'Close']].tail(30)
     
-    # ಬೇಸ್ ಚಾರ್ಟ್ ಕಾನ್ಫಿಗರೇಶನ್
-    base = alt.Chart(plot_data).encode(
+    # 🌟 ಸೀಕ್ರೆಟ್ ಫಿಕ್ಸ್: ಡೇಟಾವನ್ನು ಸಂಪೂರ್ಣವಾಗಿ ಪ್ಯೂರ್ ಜಾವಾಸ್ಕ್ರಿಪ್ಟ್ ಆಬ್ಜೆಕ್ಟ್ (List of Dicts) ಆಗಿ ಪರಿವರ್ತಿಸುವುದು 🌟
+    pure_records = chart_df.to_dict(orient='records')
+    
+    # ಬೇಸ್ ಚಾರ್ಟ್ ಕ್ರಿಯೇಷನ್ (ಡೇಟಾಫ್ರೇಮ್ ಬದಲಾಗಿ ರೆಕಾರ್ಡ್ಸ್ ಲಿಸ್ಟ್ ಬಳಸಲಾಗಿದೆ)
+    base = alt.Chart(alt.Data(values=pure_records)).encode(
         x=alt.X('Date:N', axis=alt.Axis(title="Timeline", labelAngle=-45)),
         color=alt.condition(
             "datum.Open <= datum.Close", 
-            alt.value("#00d09c"),  # Groww Green
-            alt.value("#ff5353")   # Groww Red
+            alt.value("#00d09c"), 
+            alt.value("#ff5353")
         )
     )
     
-    # Wick (Low ಮತ್ತು High ಲೈನ್)
+    # Wick Line
     rule = base.mark_rule().encode(
         y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
         y2=alt.Y('High:Q')
     )
     
-    # Body (Open ಮತ್ತು Close ಬಾಕ್ಸ್)
+    # Bar Body
     bar = base.mark_bar().encode(
         y='Open:Q',
         y2='Close:Q'
@@ -236,6 +225,6 @@ if selected_stock in all_data:
     
     st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
     
-    # ಎರಡು ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಕಂಬೈನ್ ಮಾಡಿ ಡಿಸ್ಪ್ಲೇ ಮಾಡುವುದು
-    final_chart = alt.layer(rule, bar).properties(width='container', height=400)
+    # ಚಾರ್ಟ್ ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಜೋಡಿಸುವುದು
+    final_chart = alt.layer(rule, bar).properties(height=400)
     st.altair_chart(final_chart, use_container_width=True)
