@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import yfinance as yf
-import altair as alt
+import plotly.graph_objects as go  # 🌟 ಅಲ್ಟೇರ್ ಬದಲಿಗೆ ಪ್ಲಾಟ್ಲಿ ಇಂಪೋರ್ಟ್ ಮಾಡಲಾಗಿದೆ
 from datetime import datetime
 
 # 1. STREAMLIT PAGE CONFIG & GROWW DARK THEME
@@ -95,7 +95,7 @@ def calculate_indicators(df):
                    
     return df.replace([np.inf, -np.inf], np.nan).fillna(0)
 
-# 5. DATA FETCHING (yfinance) WITH MULTIINDEX FIX
+# 5. DATA FETCHING (yfinance)
 @st.cache_data(ttl=300)
 def fetch_terminal_data():
     master_data = {}
@@ -104,9 +104,8 @@ def fetch_terminal_data():
             ticker = yf.Ticker(stock)
             df = ticker.history(period="3mo", interval="1d")
             if not df.empty:
-                # ಮಲ್ಟಿ ಇಂಡೆಕ್ಸ್ ಕಾಲಂಗಳನ್ನು ಕ್ಲೀನ್ ಮಾಡುವುದು
                 if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = [col[0] for col in df.columns]
+                    df.columns = [col for col in df.columns]
                 df.columns = df.columns.map(str)
                 master_data[stock] = calculate_indicators(df)
         except Exception:
@@ -123,7 +122,7 @@ try:
     nifty = yf.Ticker("^NSEI").history(period="2d")
     if not nifty.empty:
         if isinstance(nifty.columns, pd.MultiIndex):
-            nifty.columns = [col[0] for col in nifty.columns]
+            nifty.columns = [col for col in nifty.columns]
         nifty.columns = nifty.columns.map(str)
         nifty_close = float(nifty['Close'].iloc[-1])
         nifty_change = float(((nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]) / nifty['Close'].iloc[-2]) * 100)
@@ -182,7 +181,8 @@ if matrix_rows:
     st.dataframe(matrix_df, use_container_width=True)
 else:
     st.warning("Technical Matrix builds are empty.")
-# 9. WICK-PERFECT ALTAIR CANDLESTICK CHART (100% DATA-TYPE VALIDATION FIX)
+
+# 9. WICK-PERFECT INTERACTIVE CANDLESTICK CHART (PLOTLY - 100% ERROR SAFE)
 st.sidebar.markdown("### 🔍 Stock Analysis")
 selected_stock = st.sidebar.selectbox("Select Asset for Deep Pass", NSE_STOCKS)
 
@@ -190,49 +190,39 @@ if selected_stock in all_data:
     raw_df = all_data[selected_stock].copy()
     chart_df = raw_df.reset_index()
     
-    # ಡೇಟ್ ಮತ್ತು ಮುಖ್ಯ ಕಾಲಂ ಹೆಸರನ್ನು ಸುಲಭವಾಗಿ ಬದಲಾಯಿಸುವುದು
-    chart_df = chart_df.rename(columns={chart_df.columns[0]: 'Date'})
-    chart_df['Date'] = pd.to_datetime(chart_df['Date']).dt.strftime('%Y-%m-%d')
+    chart_df = chart_df.rename(columns={chart_df.columns: 'Date'})
+    chart_df['Date'] = pd.to_datetime(chart_df['Date'])
+    plot_data = chart_df.tail(30)
     
-    # ಕೊನೆಯ 30 ದಿನಗಳ ಡೇಟಾ ಫಿಲ್ಟರ್
-    chart_df = chart_df[['Date', 'Open', 'High', 'Low', 'Close']].tail(30)
+    st.header(f"📈 Wick-Perfect Institutional View: {selected_stock}")
     
-    # 🌟 ಅಲ್ಟೇರ್ ಸ್ಕೀಮಾ ದೋಷ ತಡೆಯಲು ಎಲ್ಲಾ ನಂಬರ್‌ಗಳನ್ನು ಪ್ಯೂರ್ ಪೈಥಾನ್ ಫ್ಲೋಟ್ (Float) ಗೆ ಬದಲಾಯಿಸುವ ಲೇಯರ್ 🌟
-    pure_records = []
-    for _, row in chart_df.iterrows():
-        pure_records.append({
-            "Date": str(row['Date']),
-            "Open": float(row['Open']),
-            "High": float(row['High']),
-            "Low": float(row['Low']),
-            "Close": float(row['Close'])
-        })
+    # 🌟 Plotly ಮೂಲಕ ದೋಷಮುಕ್ತ ಕ್ಯಾಂಡಲ್‌ಸ್ಟಿಕ್ ರಚನೆ 🌟
+    fig = go.Figure(data=[go.Candlestick(
+        x=plot_data['Date'],
+        open=plot_data['Open'],
+        high=plot_data['High'],
+        low=plot_data['Low'],
+        close=plot_data['Close'],
+        increasing_line_color='#00d09c', # Groww Green
+        decreasing_line_color='#ff5353', # Groww Red
+        increasing_fillcolor='#00d09c',
+        decreasing_fillcolor='#ff5353'
+    )])
     
-    # ಚಾರ್ಟ್ ರಚನೆ (ಪ್ಯೂರ್ ಪೈಥಾನ್ ಡಿಕ್ಷನರಿ ಡೇಟಾದೊಂದಿಗೆ)
-    base = alt.Chart(alt.Data(values=pure_records)).encode(
-        x=alt.X('Date:N', axis=alt.Axis(title="Timeline", labelAngle=-45)),
-        color=alt.condition(
-            "datum.Open <= datum.Close", 
-            alt.value("#00d09c"), # Groww Green
-            alt.value("#ff5353")  # Groww Red
-        )
+    # ಡಾರ್ಕ್ ಥೀಮ್ ವಿನ್ಯಾಸ ಜೋಡಣೆ
+    fig.update_layout(
+        plot_bgcolor='#121826',
+        paper_bgcolor='#0b0f19',
+        font_color='#e2e8f0',
+        xaxis_title="Timeline",
+        yaxis_title="Price (INR)",
+        xaxis_rangeslider_visible=False,
+        margin=dict(l=10, r=10, t=10, b=10),
+        height=450
     )
     
-    # Wick ಲೈನ್
-    rule = base.mark_rule().encode(
-        y=alt.Y('Low:Q', title="Price (INR)", scale=alt.Scale(zero=False)),
-        y2=alt.Y('High:Q')
-    )
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#1e293b')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#1e293b')
     
-    # Bar ಬಾಡಿ
-    bar = base.mark_bar().encode(
-        y='Open:Q',
-        y2='Close:Q'
-    )
-    
-    st.header(f"📈 Wick-Perfect Altair View: {selected_stock}")
-    
-    # ಲೇಯರ್‌ಗಳನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಜೋಡಿಸಿ ಪ್ರದರ್ಶಿಸುವುದು
-    final_chart = alt.layer(rule, bar).properties(height=400)
-    st.altair_chart(final_chart, use_container_width=True)
-
+    # ಸ್ಟ್ರೀಮ್‌ಲಿಟ್‌ಗೆ ಸುರಕ್ಷಿತವಾಗಿ ಇಂಜೆಕ್ಟ್ ಮಾಡುವುದು
+    st.plotly_chart(fig, use_container_width=True)
