@@ -192,7 +192,7 @@ else:
     time_col = 'Datetime' if 'Datetime' in signal_ledger.columns else 'Date'
 
     # ==========================================
-    # 4. LIVE ALGO EXECUTION DESK (TOP CLASS ALGO CALLS Node)
+    # 4. LIVE ALGO EXECUTION DESK (TOP CLASS ALGO CALLS)
     # ==========================================
     pd_st.subheader("🚨 Institutional Live Signal Desk")
     
@@ -212,16 +212,14 @@ else:
         t2 = float(latest_tick['Target_2'])
         display_color = "red"
     else:
-        stop_loss = entry_price - (atr_val * 2.0) # Default line setup
+        stop_loss = entry_price - (atr_val * 2.0)
         t1 = entry_price * 1.01
         t2 = entry_price * 1.02
         display_color = "orange"
 
-    # Display Premium Custom Alert Call Box
-    pd_st.markdown(f"""
-        <div style="background-color: #171b26; padding: 25px; border-radius: 10px; border-left: 8px solid {display_color}; margin-bottom: 20px;">
-            <h2 style="margin: 0; color: #ffffff;">SYSTEM CALL: <span style="color: {display_color};">{sig_status.replace('_', ' ')}</span></h2>
-            <p style="color: #848e9c; margin-top: 5px; font-size: 13px;">Asset ID: {target_stock} | Generation Timestamp: {str(latest_tick[time_col])} (Live Sync)</p>
-            <hr style="border: 0; border-top: 1px solid #2a2e39; margin: 15px 0;">
-            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-                <div><span style="color: #848e9c; font-size: 12px;">EXECUTION / BUYING PRICE</span><br><strong style="font-size: 24px; color: #ffffff;">₹{entry_price:.2f}</strong></div>
+    # FIXED: Built pure safe HTML using standard concatenation without f-string quote collision
+    html_string = '<div style="background-color: #171b26; padding: 25px; border-radius: 10px; border-left: 8px solid ' + display_color + '; margin-bottom: 20px;">'
+    html_string += '<h2 style="margin: 0; color: #ffffff;">SYSTEM CALL: <span style="color: ' + display_color + ';">' + sig_status.replace('_', ' ') + '</span></h2>'
+    html_string += '<p style="color: #848e9c; margin-top: 5px; font-size: 13px;">Asset ID: ' + str(target_stock) + ' | Generation Timestamp: ' + str(latest_tick[time_col]) + ' (Live Sync)</p>'
+    html_string += '<hr style="border: 0; border-top: 1px solid #2a2e39; margin: 15px 0;">'
+    html_string += '<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px;">'
