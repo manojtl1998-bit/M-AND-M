@@ -187,24 +187,21 @@ try:
         m_col3.metric("MACD Line", f"{df['MACD'].iloc[-1]:.2f}")
         m_col4.metric("ATR (Volatility)", f"{df['ATR'].iloc[-1]:.2f}")
 
-        # ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (SPACING COMPLETELY FLATTENED AND FIXED)
+        # ದೋಷಮುಕ್ತ ಸಿಗ್ನಲ್ಸ್ ಬಾಕ್ಸ್ (DANGER FREE FLAT DESIGN)
         st.write("### 🚨 M and M ಅಲ್ಗಾರಿದಮಿಕ್ ಟ್ರೇಡಿಂಗ್ ಸಿಗ್ನಲ್ಸ್")
         st_signal = df['SuperTrend_Signal'].iloc[-1]
         bb_upper = df['BB_Upper'].iloc[-1]
         bb_lower = df['BB_Lower'].iloc[-1]
 
         sig_col1, sig_col2 = st.columns(2)
-        with sig_col1:
-            st.info("🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್ ಸಿಗ್ನಲ್:**")
-            if st_signal == "BUY":
-                st.success("🟢 **ALGO: STRONG BUY (ಬಲವಾದ ಖರೀದಿ)**")
-            else:
-                st.error("🔴 **ALGO: STRONG SELL (ಬಲವಾದ ಮಾರಾಟ)**")
+        
+        # 1. ಸೂಪರ್‌ಟ್ರೆಂಡ್ ಡಿಸ್ಪ್ಲೇ
+        if st_signal == "BUY":
+            sig_col1.success(f"🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್:**\n\n🟢 **STRONG BUY (ಬಲವಾದ ಖರೀದಿ)**")
+        if st_signal == "SELL":
+            sig_col1.error(f"🤖 **SuperTrend ಅಲ್ಗಾರಿದಮ್:**\n\n🔴 **STRONG SELL (ಬಲವಾದ ಮಾರಾಟ)**")
 
-        with sig_col2:
-            st.info("📊 **Bollinger Bands ಬ್ರೇಕ್‌ಔಟ್ ಅಲರ್ಟ್:**")
-            if latest_close >= bb_upper:
-                st.success("🔥 **UPPER BAND BREAKOUT!**")
-            elif latest_close <= bb_lower:
-                st.error("⚠️ **LOWER BAND BREAKOUT!**")
-            else:
+        # 2. ಬೋಲಿಂಜರ್ ಬ್ಯಾಂಡ್ಸ್ ಡಿಸ್ಪ್ಲೇ
+        if latest_close >= bb_upper:
+            sig_col2.success(f"📊 **Bollinger Bands ಅಲರ್ಟ್:**\n\n🔥 **UPPER BAND BREAKOUT!**")
+        if latest_close <= bb_lower:
