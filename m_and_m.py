@@ -5,39 +5,40 @@ import yfinance as yf
 from datetime import datetime, timedelta
 
 # ==========================================
-# 1. SYSTEM CONFIGURATION & FIXED DARK THEME
+# 1. SYSTEM CONFIGURATION & WEBULL DARK THEME
 # ==========================================
 pd_st.set_page_config(
     page_title="M&M Institutional Quant Terminal",
-    layout="wide",
+    layout="wide",  # Stretch to match screen borders
     initial_sidebar_state="expanded"
 )
 
-# Premium Velvet Deep Black Background Style Node
+# Webull & TradingView Premium Matte Dark Charcoal Styling Palette
 pd_st.markdown("""
     <style>
         html, body, [data-testid="stAppViewContainer"] { 
-            background-color: #0b0f19 !important; 
-            color: #f0f2f5 !important; 
+            background-color: #11141c !important; 
+            color: #d1d4dc !important; 
         }
         .block-container {
             max-width: 100% !important;
-            padding-left: 1.5rem !important;
-            padding-right: 1.5rem !important;
-            padding-top: 1.5rem !important;
-            padding-bottom: 1.5rem !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
         }
         h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-        div[data-testid="stMetricValue"] { color: #00e676 !important; font-weight: bold; font-size: 24px !important; }
-        .stDataFrame div { background-color: #12161a !important; }
+        div[data-testid="stMetricValue"] { color: #00c853 !important; font-weight: bold; font-size: 24px !important; }
+        .stDataFrame div { background-color: #171b26 !important; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
 # 2. DATA ENGINE & CORE QUANT OPERATIONS
 # ==========================================
-@pd_st.cache_data(ttl=600)
+@pd_st.cache_data(ttl=300)
 def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
+    """Fetches and flattens real-time structural asset feeds from yfinance"""
     try:
         raw_df = yf.download(tickers=symbol, period=period, interval=interval)
         if raw_df.empty:
@@ -59,6 +60,7 @@ def fetch_ticker_data(symbol: str, period: str = "60d", interval: str = "15m"):
         return pd.DataFrame()
 
 def calculate_quant_matrix(df: pd.DataFrame):
+    """Executes Vectorized Matrix Passes: RSI, MACD, and Chandelier Trailing Channel"""
     df = df.copy()
     if len(df) < 30:
         return df
@@ -139,7 +141,7 @@ def generate_execution_signals(df: pd.DataFrame):
 # 3. INTERACTIVE DASHBOARD & SIDEBAR INPUTS
 # ==========================================
 pd_st.title("📊 M&M Institutional Quant Terminal")
-pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.2 Live")
+pd_st.caption("Advanced Alpha Matrix & Global Risk Infrastructure | Version 3.3 Stable")
 pd_st.markdown("---")
 
 nse_universe = [
@@ -182,61 +184,48 @@ else:
     pd_st.markdown("---")
 
     # ==========================================
-    # 4. FIXED HIGH-VISIBILITY MULTI-MATRIX GRAPH Node
+    # 4. TRADINGVIEW / WEBULL INTERACTIVE CANDLESTICK GRID (HIGH EXPOSURE)
     # ==========================================
-    pd_st.subheader("📈 Institutional Close Price Matrix & Chandelier Trailing Channel")
+    pd_st.subheader("📈 TradingView Candlestick Matrix Pattern")
     
-    chart_df = signal_ledger.tail(60).copy()
+    chart_df = signal_ledger.tail(45).copy()
     time_col = 'Datetime' if 'Datetime' in chart_df.columns else 'Date'
     
-    # Advanced Safe Multi-Line Area Array Node
-    native_chart_data = pd.DataFrame({
-        'Timeline': chart_df[time_col].values.flatten(),
-        'LTP Close Price (INR)': chart_df['Close'].values.flatten(),
-        'Chandelier Trailing Break Line': chart_df['Chandelier_Long'].values.flatten()
-    }).set_index('Timeline')
+    # Generate HTML Component to emulate TradingView/Webull core layout directly
+    candles_html = f"""
+    <div style="background-color: #131722; padding: 15px; border-radius: 8px; border: 1px solid #2a2e39; font-family: sans-serif; overflow-x: auto;">
+        <div style="display: flex; align-items: flex-end; height: 320px; gap: 8px; border-bottom: 2px solid #2a2e39; padding-bottom: 10px; min-width: 900px;">
+    """
     
-    # High-Contrast Multi-Line Layout - Native Optimization
-    pd_st.line_chart(native_chart_data, height=420, use_container_width=True)
-
-    pd_st.markdown("---")
-
-    # ==========================================
-    # 5. PORTFOLIO RISK MATRIX GRID
-    # ==========================================
-    pd_st.subheader("🛡️ Institutional Risk Matrix & Automated Sizing Ledger")
+    closes = chart_df['Close'].values.flatten()
+    opens = chart_df['Open'].values.flatten()
+    highs = chart_df['High'].values.flatten()
+    lows = chart_df['Low'].values.flatten()
+    times = chart_df[time_col].dt.strftime('%H:%M' if 'Datetime' in chart_df.columns else '%d %b').values
     
-    entry_price = float(latest_tick['Close'])
-    atr_value = float(latest_tick['ATR_14'])
-    stop_loss = entry_price - (atr_value * 2.0)
-    risk_rupees = capital_allocation * (max_risk_per_trade / 100.0)
-    per_share_risk = entry_price - stop_loss
+    min_p, max_p = min(lows), max(highs)
+    p_range = (max_p - min_p) if (max_p - min_p) > 0 else 1
     
-    allocated_position_size = int(risk_rupees / per_share_risk) if per_share_risk > 0 else 0
-    total_trade_commitment = allocated_position_size * entry_price
-    leverage_multiple = total_trade_commitment / capital_allocation
-
-    r1, r2, r3, r4 = pd_st.columns(4)
-    
-    with r1:
-        pd_st.info("**Absolute Risk Buffer**")
-        pd_st.markdown(f"### ₹{risk_rupees:,.2f}")
-        pd_st.caption(f"Strict {max_risk_per_trade}% threshold limit.")
+    for i in range(len(chart_df)):
+        op, cl, hi, lo = opens[i], closes[i], highs[i], lows[i]
+        is_bull = cl >= op
+        color = "#089981" if is_bull else "#f23645" # True TradingView Green/Red Colors
         
-    with r2:
-        pd_st.warning("**Dynamic Stop-Loss Line**")
-        pd_st.markdown(f"### ₹{stop_loss:,.2f}")
-        pd_st.caption("Calculated via 2x ATR Trailing Model.")
+        # Scaling mathematics for pixel accuracy mapping
+        body_top = max(op, cl)
+        body_bottom = min(op, cl)
         
-    with r3:
-        pd_st.success("**Calculated Optimal Size**")
-        pd_st.markdown(f"### {allocated_position_size} Units")
-        pd_st.caption("Maximum shares to trade safety limit.")
+        total_h = 300
+        y_max = ((hi - min_p) / p_range) * total_h
+        y_top = ((body_top - min_p) / p_range) * total_h
+        y_bot = ((body_bottom - min_p) / p_range) * total_h
+        y_min = ((lo - min_p) / p_range) * total_h
         
-    with r4:
-        pd_st.error("**Leverage & Exposure Grid**")
-        pd_st.markdown(f"### {leverage_multiple:.2f}x Factor")
-        pd_st.caption(f"Total Trade Value: ₹{total_trade_commitment:,.2f}")
-
-    # Comprehensive Combined Signal Ledger View
-    pd_st.markdown("---")
+        wick_h = max(1, y_max - y_min)
+        body_h = max(2, y_top - y_bot)
+        
+        candles_html += f"""
+        <div style="display: flex; flex-direction: column; align-items: center; width: 100%; position: relative; height: 300px;">
+            <!-- Wick Line -->
+            <div style="position: absolute; bottom: {y_min}px; width: 2px; height: {wick_h}px; background-color: {color}; opacity: 0.7;"></div>
+            <!-- Candle Body -->
